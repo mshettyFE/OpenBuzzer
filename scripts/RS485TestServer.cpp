@@ -13,20 +13,25 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 int count = 0;
 
 void setup() {
+// Set up OLED display
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
+// Start Serial
   Serial.begin(115200);
+// Set ENABLE High to enable transmission
   pinMode(ENABLE_PIN,OUTPUT);
   digitalWrite(ENABLE_PIN,HIGH);
 }
 
 void loop() {
+// Send number
   Serial.println(count);
   count++;
+// Display current number
   display.clearDisplay();
   display.setCursor(0, 00);
   display.printf("Count:%d",count);
-  display.display();   
+  display.display();
 }
