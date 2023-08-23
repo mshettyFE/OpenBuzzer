@@ -15,19 +15,18 @@ int count = 0;
 void setup() {
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
   Serial.begin(115200);
   pinMode(ENABLE_PIN,OUTPUT);
-  digitalWrite(ENABLE_PIN,LOW);
+  digitalWrite(ENABLE_PIN,HIGH);
 }
 
 void loop() {
-  while(Serial.available()){
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    display.setCursor(0, 0);
-    count = Serial.parseInt();
-    display.printf("Count:%d",count);
-    display.display();   
-  }
+  Serial.println(count);
+  count++;
+  display.clearDisplay();
+  display.setCursor(0, 00);
+  display.printf("Count:%d",count);
+  display.display();   
 }
