@@ -7,7 +7,7 @@
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
 int ENABLE_PIN = 2;
-int count = 0;
+uint64_t timing = micros();
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -27,12 +27,12 @@ void setup() {
 
 void loop() {
 // Send number
-  count++;
-  Serial.printf("!%d@",count);
+timing = micros();
+  Serial.printf("!%llu@",timing);
 // Display current number
 
   display.clearDisplay();
   display.setCursor(0, 0);
-  display.printf("Count:%d",count);
+  display.printf("Count:%llu",timing);
   display.display();
 }

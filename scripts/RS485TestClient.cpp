@@ -17,7 +17,7 @@ char buffer[bufferSize];
 bool msg_start = false;
 bool msg_end = false;
 
-int data=-1;
+uint64_t data=0;
 
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
@@ -73,10 +73,10 @@ void loop() {
   if(msg_end&&msg_start){
     msg_start = false;
     msg_end = false;
-    data = atoi(buffer);
+    data = strtoull(buffer,NULL,10);
     display.clearDisplay();
     display.setCursor(0,0);
-    display.printf("Count:%d",data);
+    display.printf("Count:%llu",data);
     display.display();
   }
 }

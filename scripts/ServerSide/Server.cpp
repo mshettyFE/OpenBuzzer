@@ -7,89 +7,76 @@
 
 int ENABLE_PIN = 2;
 
-int WaitTime = 100000;
+char start_marker = '!';
+char end_marker = '@';
 
-enum MessageCode {ALIVE,TIMING,RESET};
+const byte bufferSize = 32;
+byte buffer_index = 0;
+char buffer[bufferSize];
 
-// Array of player IDs RS485 supports a max of 32 devices
-// 0 means device not present.
-// 1 means device present
-bool AvailablePlayers[32] = {0,0,0,0,0,0,0,0,
-                        0,0,0,0,0,0,0,0,
-                        0,0,0,0,0,0,0,0,
-                        0,0,0,0,0,0,0,0};
+bool msg_start = false;
+bool msg_end = false;
+
+int data=-1;
+
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-unsigned long start_time = micros();
-
-void ScanForDevice(unsigned long period){
-    int response;
-    display.clearDisplay();
-    display.setCursor(0,0);
-    display.println("Starting Scan...");
-    display.display();
-    for(int Device=0; Device<32; ++Device){
-        Serial.printf("@%d@!%d!",Device,ALIVE );
-// expects 255 as response
-        digitalWrite(ENABLE_PIN,LOW);
-        unsigned long start = micros();
-        unsigned long end = micros();
-        bool device_found = false;
-        while((end-start) < period){
-          if(Serial.read() == '('){
-            response = Serial.parseInt();
-            if(Serial.read()==')'){
-              if(response==255){
-                device_found=true;
-                display.println(Device);
-                display.display();
-                break;
-              }
-            }
+void RecieveChar(){
+  char rc;
+  while(Serial.available() >0 ){
+    rc = Serial.read();
+    if(!msg_start){
+          if(rc==start_marker){
+//            Serial.println("start");
+            // Point to beginning of array, and allow future reads of Serial to be processed
+            buffer_index = 0;
+            msg_start = true;
           }
-          end = micros();
-        }
-        if(device_found){
-            AvailablePlayers[Device] = true;
-        }
-        digitalWrite(ENABLE_PIN,HIGH);
     }
-    display.println("Scan Done");
-    display.display();
-    delay(2000);
+    else{
+      if(rc!=end_marker){
+// read in characters, then advance index
+//            Serial.println("mid");
+        buffer[buffer_index] = rc;
+        buffer_index++;
+// If the index exceeds the buffer size, set buffer_index to end of buffer
+        if(buffer_index>=bufferSize){
+          buffer_index = bufferSize-1;
+        }
+      }
+      else{
+// We are at the nd of the message. Need to null terminate string
+//            Serial.println("end");
+        buffer[buffer_index] = '\0';
+        msg_end = true;
+      }
+    }
+  }
 }
 
 void setup() {
-// Set up OLED display
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-// Start Serial
+  display.clearDisplay();
+  display.println("Start");
+  display.display();
   Serial.begin(115200);
-// Set ENABLE High to enable transmission
   pinMode(ENABLE_PIN,OUTPUT);
-  digitalWrite(ENABLE_PIN,HIGH);
+  digitalWrite(ENABLE_PIN,LOW);
 }
 
 void loop() {
-    ScanForDevice(WaitTime);
-// Display current number
-/*
-  bool f  = false;
-  display.clearDisplay();
-  display.setCursor(0,0);
-  for(int Dev=0; Dev<32; ++Dev){
-    if(AvailablePlayers[Dev]==true){
-          display.println(Dev);
-          f = true;
-    }
+  RecieveChar();
+  if(msg_end&&msg_start){
+    msg_start = false;
+    msg_end = false;
+    data = atoi(buffer);
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.printf("Count:%d",data);
+    display.display();
   }
-  if(!f){
-    display.println("Nothing");
-  }
-  display.display();
-*/
 }
