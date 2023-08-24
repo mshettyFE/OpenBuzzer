@@ -20,14 +20,22 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 int count = 0;
 
 void AliveResponse(){
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.println(device_id);
     digitalWrite(ENABLE_PIN,HIGH);
-    Serial.println(255);
+    Serial.printf("(%d))",255 );
     digitalWrite(ENABLE_PIN,LOW);
+    for(;;);
 }
 
 void Respond(unsigned long period){
 // perpetually waiting for staring character.
     while(Serial.read()!='@'){
+      display.clearDisplay();
+      display.setCursor(0,0);
+      display.println("Waiting...");
+      display.display();
       continue;
     }
 // If we see !, we are in the middle of another message. Return.
@@ -39,6 +47,12 @@ void Respond(unsigned long period){
     if(response!=device_id){
         return;
     }
+// This shouldn't happen, since @! are sequential. But just in case
+    if(Serial.peek()!='!'){
+      Serial.read();
+      return;
+    }
+    Serial.read();
 // read in command
     response = Serial.parseInt();
     switch(response){

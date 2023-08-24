@@ -26,6 +26,10 @@ unsigned long start_time = micros();
 
 void ScanForDevice(unsigned long period){
     int response;
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.println("Starting Scan...");
+    display.display();
     for(int Device=0; Device<32; ++Device){
         Serial.printf("@%d@!%d!",Device,ALIVE );
 // expects 255 as response
@@ -34,18 +38,27 @@ void ScanForDevice(unsigned long period){
         unsigned long end = micros();
         bool device_found = false;
         while((end-start) < period){
-          response = Serial.read();
-          if(response==255){
-            device_found=true;
-            break;
+          if(Serial.read() == '('){
+            response = Serial.parseInt();
+            if(Serial.read()==')'){
+              if(response==255){
+                device_found=true;
+                display.println(Device);
+                display.display();
+                break;
+              }
+            }
           }
-          unsigned long end = micros();
+          end = micros();
         }
         if(device_found){
             AvailablePlayers[Device] = true;
         }
         digitalWrite(ENABLE_PIN,HIGH);
     }
+    display.println("Scan Done");
+    display.display();
+    delay(2000);
 }
 
 void setup() {
@@ -59,17 +72,24 @@ void setup() {
 // Set ENABLE High to enable transmission
   pinMode(ENABLE_PIN,OUTPUT);
   digitalWrite(ENABLE_PIN,HIGH);
-  ScanForDevice(WaitTime);
 }
 
 void loop() {
+    ScanForDevice(WaitTime);
 // Display current number
+/*
+  bool f  = false;
   display.clearDisplay();
+  display.setCursor(0,0);
   for(int Dev=0; Dev<32; ++Dev){
     if(AvailablePlayers[Dev]==true){
           display.println(Dev);
+          f = true;
     }
   }
+  if(!f){
+    display.println("Nothing");
+  }
   display.display();
-  delay(2000);
+*/
 }

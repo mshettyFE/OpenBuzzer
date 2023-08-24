@@ -1,3 +1,4 @@
+// https://forum.arduino.cc/t/serial-input-basics-updated/382007/3
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -6,11 +7,10 @@
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
 int ENABLE_PIN = 2;
+int count = 0;
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-
-int count = 0;
 
 void setup() {
 // Set up OLED display
@@ -27,11 +27,12 @@ void setup() {
 
 void loop() {
 // Send number
-  Serial.println(count);
   count++;
+  Serial.printf("!%d@",count);
 // Display current number
+
   display.clearDisplay();
-  display.setCursor(0, 00);
+  display.setCursor(0, 0);
   display.printf("Count:%d",count);
   display.display();
 }

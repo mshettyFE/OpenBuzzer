@@ -13,7 +13,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "LittleFS.h"
-#include <string>
 
 // Replace with your network credentials
 const char* ssid = "test";
