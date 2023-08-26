@@ -12,8 +12,6 @@ bool msg_start,msg_end;
 uint8_t buffer_index, received_device_id;
 MessageType received_msg;
 
-bool received = 0;
-
 uint64_t start;
 uint64_t delta = 525600;
 // Buffer for incoming message;
@@ -38,9 +36,18 @@ void setup() {
   msg_start = false;
   msg_end = false;
   buffer_index = 0;
-  received = false;
   start = micros();
 }
+
+void ResetClient(){
+  digitalWrite(ENABLE_PIN,LOW);
+  received_msg = INVALID;
+  received_device_id = 0;
+  msg_start = false;
+  msg_end = false;
+  buffer_index = 0;
+}
+
 
 void ScanForCommands(){
   while(1){
@@ -48,7 +55,7 @@ void ScanForCommands(){
     if(msg_end && msg_start){
      ParseMsgClient(buffer,received_device_id,received_msg);
      ClientAction(received_msg,received_device_id,DEVICE_ID);
-     received = true;
+     ResetClient();
      break;
     }
   } 
@@ -58,7 +65,6 @@ void UpdateClientDisplay(){
   display.clearDisplay();
   display.setCursor(0,0);
   display.printf("Device ID:%d\n",DEVICE_ID);
-  display.printf("Status:%d",received);
   display.display();
 
 }

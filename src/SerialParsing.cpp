@@ -211,6 +211,15 @@ void SendMsgClient(uint8_t Device_ID, MessageType msgt,uint64_t delta){
 
 bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_id, uint8_t exp_device_id, bool* DevicesAlive, uint64_t timing){
   if(rec_msg!=exp_msg && rec_device_id!= exp_device_id){
+    switch(exp_msg){
+      case ALIVE:
+        DevicesAlive[exp_device_id] = false;
+        break;
+      case TIMING:
+      case RESET:
+      default:
+        break;
+    }
     return false;
   }
   switch(rec_msg){

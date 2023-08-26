@@ -15,7 +15,7 @@ enum MessageType {INVALID,ALIVE,TIMING,RESET};
 const int ENABLE_PIN = 2;
 
 // Maximum number of devices that can be connected
-const int MAX_DEVICES = 5;
+const int MAX_DEVICES = 2;
 
 // Response wait time in microseconds
 const uint64_t WAIT_TIME = 1000000;
