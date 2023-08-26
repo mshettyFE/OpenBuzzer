@@ -1,7 +1,8 @@
 #include "SerialParsing.h"
+#include "Constants.h"
+
 #include <errno.h>
 #include <Arduino.h>
-#include "Constants.h"
 #include <stdint.h>
 
 void RecieveChar(char* buffer, uint8_t& buffer_index, bool& msg_start,bool& msg_end){
@@ -69,12 +70,12 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
       case ALIVE:
         MSGT = ALIVE;
         break;
-      case RESET:
-        MSGT = RESET;
-        break;
       case TIMING:
         MSGT = TIMING;
         break;
+  // We should never get a response from a Client containing BUZZED_IN or RESET. If we do, we treat these messages as invalid
+      case LOCK_IN:
+      case RESET:
       case INVALID:
       default:
         MSGT = INVALID;
@@ -94,13 +95,16 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
 // Switch on what MSGT is. 
   switch(MSGT){
     case ALIVE:
-    case RESET:
       device_id = atoi(endIndex);
       if(device_id<1 || device_id > MAX_DEVICES){
         return;
       }
       break;
     case TIMING:
+      device_id = atoi(endIndex);
+      if(device_id<1 || device_id > MAX_DEVICES){
+        return;
+      }
       endIndex = strtok(NULL, delimiter);
       if(endIndex==NULL){
         timing = 0;
@@ -111,7 +115,9 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
         return ;
       }
       break;
-// Invalid and default cascade into each other
+// Cascade these together since we should never get them.
+    case LOCK_IN:
+    case RESET:
     case INVALID:
     default:
       break;
@@ -163,6 +169,8 @@ void ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
       case TIMING:
         MSGT = TIMING;
         break;
+      case LOCK_IN:
+        MSGT = LOCK_IN;
       case INVALID:
       default:
         MSGT = INVALID;
@@ -196,64 +204,18 @@ void SendMsgClient(uint8_t Device_ID, MessageType msgt,uint64_t delta){
       Serial.printf("!%d#%d#%llu@",msgt,Device_ID,delta);
       break;
     case ALIVE:
-    case RESET:
     case INVALID:
+      Serial.printf("!%d#%d@",msgt,Device_ID);
+      break;
+    case LOCK_IN:
+    case RESET:
     default:
-    Serial.printf("!%d#%d@",msgt,Device_ID);
-
+// send nothing
+      break;
   }
 // Make sure data is written to bus
   Serial.flush();
 //  while(Serial.availableForWrite() > 0);
 // turn on receiving
   digitalWrite(ENABLE_PIN,LOW);
-}
-
-bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_id, uint8_t exp_device_id, bool* DevicesAlive, uint64_t timing){
-  if(rec_msg!=exp_msg && rec_device_id!= exp_device_id){
-    switch(exp_msg){
-      case ALIVE:
-        DevicesAlive[exp_device_id] = false;
-        break;
-      case TIMING:
-      case RESET:
-      default:
-        break;
-    }
-    return false;
-  }
-  switch(rec_msg){
-    case ALIVE:
-      DevicesAlive[rec_device_id] = true;
-      return true;
-      break;
-    case TIMING:
-      break;
-    case RESET:
-      break;
-    case INVALID:
-    default:
-      break;
-  }
-  return false;
-}
-
-bool ClientAction(MessageType rec_msg, uint8_t rec_device_id, uint8_t exp_device_id){
-  if( rec_device_id!= exp_device_id){
-    return false;
-  }
-  switch(rec_msg){
-    case ALIVE:
-      SendMsgClient(rec_device_id,rec_msg);
-      return true;
-      break;
-    case TIMING:
-      break;
-    case RESET:
-      break;
-    case INVALID:
-    default:
-      break;
-  }
-  return false;
 }
