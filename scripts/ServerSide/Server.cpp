@@ -9,14 +9,20 @@
 // using 1 based indexing, since atoi returns 0 for no conversion. Want to avoid this ambiguity.
 bool DevicesAlive[MAX_DEVICES+1];
 
+// place to store timing data from ALIVE messages
+uint64_t starting_times[MAX_DEVICES];
+
+// Offset used to syncrhonize clocks amoungst processors. If buzz in time greater than this offset, subtract of this offset
+// If buzz in time is less than this offset, just use buzz in time
+// This ensures that all clocks have a common starting point in-spite of the fact that each client's internal starting point is difference and subject to rollover
+uint64_t synchronized_start_time = 0;
+
 // Rankings of players
 int RankingIndex = 0;
 uint8_t Rankings[MAX_DEVICES];
 
 // Buffer for incoming message;
 char buffer[bufferSize];
-
-uint64_t synchronized_start_time = 0;
 
 // places to store timing data
 uint64_t timing;
@@ -51,9 +57,7 @@ bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_i
     case ALIVE:
       DevicesAlive[rec_device_id] = true;
 // We assign the latest start 
-      if(timing> synchronized_start_time){
-        synchronized_start_time = timing;
-      }
+      starting_times[rec_device_id] = timing;
       return true;
       break;
     case TIMING:
@@ -67,6 +71,20 @@ bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_i
   return false;
 }
 
+void ServerAggregateActions(){
+// We look at the times submitted by all devices. We set the largest value seen to be the synchronized_start_time
+  uint64_t min_time =0;
+  for(int Device=0; Device<MAX_DEVICES; Device++){
+    if(DevicesAlive[Device]){
+      if(starting_times[Device] > min_time){
+        synchronized_start_time = starting_times[Device];
+      }
+    }
+  }
+  if(min_time != 0){
+    synchronized_start_time = min_time;
+  }
+}
 
 void ScanForDevices(uint64_t WaitTime){
   bool msg_start,msg_end;
@@ -99,10 +117,33 @@ void ScanForDevices(uint64_t WaitTime){
 
 void ResetDevices(uint64_t WaitTime){
   ScanForDevices(WaitTime);
+  bool msg_start,msg_end;
+  uint8_t buffer_index, received_device_id;
+  uint64_t start_time,end_time;
+  MessageType received_msg;
+
   for(int Device=1; Device<=MAX_DEVICES; Device++){
     if(DevicesAlive[Device]){
   // Fire off RESET message for device Device. It is the Client's problem to receive the message
       SendMsgServer(Device,RESET);
+  // set up local timing variables
+      start_time = micros();
+      end_time = micros();
+      received_msg = INVALID;
+      received_device_id = 0;
+      msg_start = false;
+      msg_end = false;
+      buffer_index = 0;
+  // wait for message for at most WaitTime microseconds
+      while((end_time-start_time) < WaitTime){
+        RecieveChar(buffer, buffer_index, msg_start, msg_end);
+        if(msg_end && msg_start){
+          ParseMsgServer(buffer,received_device_id,received_msg,timing);
+          break;
+        }
+        end_time = micros();
+      }
+      ServerAction(received_msg, RESET, received_device_id,Device,timing);
     }
   }
 // clear rankings
@@ -118,7 +159,7 @@ void UpdateServerDisplay(){
   for(int d=0; d<=MAX_DEVICES; ++d){
     display.printf("%d,",DevicesAlive[d]);
   }
-  display.printf("Offset:%llu\n",synchronized_start_time);
+  display.printf("\nOffset:%llu",synchronized_start_time);
   display.display();
 }
 
@@ -140,10 +181,12 @@ void setup() {
   }
 // Scan all devices to check ALIVE connections and get global offset time
   ScanForDevices(WAIT_TIME);
+  ServerAggregateActions();
 }
 
 void loop() {
   ScanForDevices(WAIT_TIME);
+  ServerAggregateActions();
   UpdateServerDisplay();
   if(reset_flag){
     ResetDevices(WAIT_TIME);

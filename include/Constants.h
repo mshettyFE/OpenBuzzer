@@ -23,8 +23,8 @@ const int TRIGGER_PIN = 14;
 // Maximum number of devices that can be connected
 const int MAX_DEVICES = 5;
 
-// Testing response wait time in microseconds. Set to 1 sec to allow a large margin to receive ping back
-const uint64_t WAIT_TIME = 1000000;
+// Testing response wait time in microseconds.
+const uint64_t WAIT_TIME = 100000;
 // Actual response time. Seems to work out...
 //const uint64_t WAIT_TIME = 50000;
 
