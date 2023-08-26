@@ -16,6 +16,8 @@ uint8_t Rankings[MAX_DEVICES];
 // Buffer for incoming message;
 char buffer[bufferSize];
 
+uint64_t synchronized_start_time = 0;
+
 // places to store timing data
 uint64_t timing;
 
@@ -25,7 +27,11 @@ bool reset_flag  = false;
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_id, uint8_t exp_device_id, uint64_t timing=0){
+void IRAM_ATTR TogglePressed(){
+ reset_flag = true; 
+}
+
+bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_id, uint8_t exp_device_id, uint64_t timing){
   if(rec_msg!=exp_msg && rec_device_id!= exp_device_id){
     switch(exp_msg){
       case ALIVE:
@@ -34,14 +40,20 @@ bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_i
       case TIMING:
       case LOCK_IN:
       case RESET:
+      case INVALID:
       default:
         break;
     }
     return false;
   }
+
   switch(rec_msg){
     case ALIVE:
       DevicesAlive[rec_device_id] = true;
+// We assign the latest start 
+      if(timing> synchronized_start_time){
+        synchronized_start_time = timing;
+      }
       return true;
       break;
     case TIMING:
@@ -81,7 +93,7 @@ void ScanForDevices(uint64_t WaitTime){
       }
       end_time = micros();
     }
-    ServerAction(received_msg, ALIVE, received_device_id,Device);
+    ServerAction(received_msg, ALIVE, received_device_id,Device,timing);
   }
 }
 
@@ -106,11 +118,8 @@ void UpdateServerDisplay(){
   for(int d=0; d<=MAX_DEVICES; ++d){
     display.printf("%d,",DevicesAlive[d]);
   }
+  display.printf("Offset:%llu\n",synchronized_start_time);
   display.display();
-}
-
-void IRAM_ATTR TogglePressed(){
- reset_flag = true; 
 }
 
 void setup() {
@@ -124,12 +133,12 @@ void setup() {
   digitalWrite(ENABLE_PIN,HIGH);
   pinMode(TRIGGER_PIN,INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(TRIGGER_PIN), TogglePressed, FALLING);
-
 // We set Device 0 to false. No client should have 0 as their id to avoid collision with atoi default of 0
   DevicesAlive[0] = false;
   for(int Device=1; Device <=MAX_DEVICES; Device++){
     DevicesAlive[Device] = false;
   }
+// Scan all devices to check ALIVE connections and get global offset time
   ScanForDevices(WAIT_TIME);
 }
 

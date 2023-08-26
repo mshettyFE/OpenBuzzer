@@ -6,11 +6,12 @@
 const int SCREEN_WIDTH  = 128; // OLED display width, in pixels
 const int SCREEN_HEIGHT =  64; // OLED display height, in pixels
 
-// Possible Messsages that can be sent. ALIVE is used to register a device. TIMING is used to get current buzz-in time of device, and RESET is used to clear state of devices
-// Server only sends out messages of the form !%d#%d@, where first %d is device ID and second %d is message type
-// Client can send messages like server, or in the case of TIMING, send and addition unsigned long long
+// Possible Messages that can be sent. 
+// ALIVE is used to register a device.
+// TIMING is used to get current buzz-in time of device
+// LOCK_IN is used to set a client as buzzed in
+// RESET is used to clear state of devices
 
-// In addition, Server can send out any valid message type, but can only receive ALIVE and TIMING as valid messages
 enum MessageType {INVALID,ALIVE,TIMING,LOCK_IN, RESET};
 
 // ENABLE_PIN to toggle between transmit and receive
@@ -20,7 +21,7 @@ const int ENABLE_PIN = 2;
 const int TRIGGER_PIN = 14;
 
 // Maximum number of devices that can be connected
-const int MAX_DEVICES = 2;
+const int MAX_DEVICES = 5;
 
 // Testing response wait time in microseconds. Set to 1 sec to allow a large margin to receive ping back
 const uint64_t WAIT_TIME = 1000000;

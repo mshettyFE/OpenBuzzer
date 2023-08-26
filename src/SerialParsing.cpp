@@ -48,7 +48,8 @@ void RecieveChar(char* buffer, uint8_t& buffer_index, bool& msg_start,bool& msg_
 void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_t& timing){
 // Assumes message has one of two forms:
 // !%d#%d@ where the first %d is the message type and second %d is device ID
-// !%d#%d#%llu@ where first %d is the message type equal to TIMING, second %d is device ID, %, and %llu is an uint64_t
+// !%d#%d#%llu@ where first %d is the message type, second %d is device ID, %, and %llu is a time
+
   char* endIndex = strtok(buffer,delimiter);
 // invalid message rest of message irrelevant
   if(endIndex==NULL){
@@ -73,9 +74,11 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
       case TIMING:
         MSGT = TIMING;
         break;
-  // We should never get a response from a Client containing BUZZED_IN or RESET. If we do, we treat these messages as invalid
       case LOCK_IN:
+          MSGT = LOCK_IN;
+          break;
       case RESET:
+          MSGT = RESET;
       case INVALID:
       default:
         MSGT = INVALID;
@@ -94,12 +97,10 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
 
 // Switch on what MSGT is. 
   switch(MSGT){
+// Timing  and Alive both expect an unsigned long as well
+// Alive expects a time to properly set the offset
+// Timing expects a time to properly determined who buzzed in
     case ALIVE:
-      device_id = atoi(endIndex);
-      if(device_id<1 || device_id > MAX_DEVICES){
-        return;
-      }
-      break;
     case TIMING:
       device_id = atoi(endIndex);
       if(device_id<1 || device_id > MAX_DEVICES){
@@ -112,10 +113,12 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
       }
       timing = strtoull(endIndex,NULL,10);
       if(errno==ERANGE){
+        MSGT = INVALID;
+        device_id = 0;
         return ;
       }
       break;
-// Cascade these together since we should never get them.
+// Cascade these together since all of these messages are good
     case LOCK_IN:
     case RESET:
     case INVALID:
@@ -126,10 +129,12 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
 }
 
 void ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
-// Assumes message has the following form
-// !%d#%d@ where the first %d is the device_ID and second %d is MessageType
+// Assumes message has the following form:
+// !%d#%d@ where the first %d is the device_id and second %d is message type
+// NOTE: This is the opposite of what the server expects (message type and device ID)
+
   char* endIndex = strtok(buffer,delimiter);
-// invalid message rest of message irrelevant
+// If we read nothing, return invalid message
   if(endIndex==NULL){
     MSGT = INVALID;
     device_id = 0;
@@ -142,6 +147,7 @@ void ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
     device_id = 0;
     return;
   }
+
 // Grab next part
   endIndex = strtok(NULL, delimiter);
   if(endIndex==NULL){
@@ -181,41 +187,49 @@ void ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
   return ;
 }
 
-void SendMsgServer(uint8_t Device_ID, MessageType msgt){
+void SendMsgServer(uint8_t Device_ID, MessageType msgt, uint64_t start){
 // turn on transmission
     digitalWrite(ENABLE_PIN,HIGH);
-// print formatted message
-    Serial.printf("!%d#%d@",Device_ID,msgt);
-// Debugging Message. Use to send Server it's own message by shorting RX and TX pins on breadboard
-//    Serial.printf("!%d#%d@",msgt,Device_ID);
-// Make sure data is written to bus
+    switch(msgt){
+      case ALIVE:
+      case TIMING:
+      case LOCK_IN:
+      case RESET:
+        Serial.printf("!%d#%d@",Device_ID,msgt);
+        break;
+      case INVALID:
+      default:
+      break;
+    }
+// Make sure data is written to bus. Currently is blocking, so can't reset in while server is sending. Shouldn't be a problem though?
   Serial.flush();
-//    while(Serial.availableForWrite() > 0);
 // turn on receiving
     digitalWrite(ENABLE_PIN,LOW);
 }
 
-void SendMsgClient(uint8_t Device_ID, MessageType msgt,uint64_t delta){
+void SendMsgClient(uint8_t Device_ID, MessageType msgt, uint64_t timing){
 // turn on transmission
   digitalWrite(ENABLE_PIN,HIGH);
 // print formatted message
   switch(msgt){
     case TIMING:
-      Serial.printf("!%d#%d#%llu@",msgt,Device_ID,delta);
+// The client sends out the time they buzzed in. Not buzzing in corresponds to a time of 0
+      Serial.printf("!%d#%d#%llu@",msgt,Device_ID, timing);
       break;
     case ALIVE:
-    case INVALID:
-      Serial.printf("!%d#%d@",msgt,Device_ID);
+// The client sends out the current time since the client started up
+      Serial.printf("!%d#%d#%lu@",msgt,Device_ID, micros());
       break;
     case LOCK_IN:
     case RESET:
+    case INVALID:
     default:
-// send nothing
+      Serial.printf("!%d#%d@",msgt,Device_ID);
+// send back generic response stating message type and device ID
       break;
   }
-// Make sure data is written to bus
+// Make sure data is written to bus. Currently blocking, so can't buzz in while client is sending. Shouldn't be a problem though, since human reaction time is ms, while this should take microseconds
   Serial.flush();
-//  while(Serial.availableForWrite() > 0);
 // turn on receiving
   digitalWrite(ENABLE_PIN,LOW);
 }

@@ -15,25 +15,26 @@ uint8_t buffer_index, received_device_id;
 MessageType received_msg;
 
 uint64_t start;
-uint64_t delta =0;
+uint64_t buzz_in_time =0;
 // Buffer for incoming message;
 char buffer[bufferSize];
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-bool ClientAction(MessageType rec_msg, uint8_t rec_device_id, uint8_t exp_device_id){
+bool ClientAction(MessageType rec_msg, uint8_t rec_device_id, uint8_t exp_device_id, uint64_t timing=0){
   if( rec_device_id!= exp_device_id){
     return false;
   }
   switch(rec_msg){
     case ALIVE:
-      SendMsgClient(rec_device_id,rec_msg);
+      SendMsgClient(rec_device_id,rec_msg,timing);
       return true;
       break;
     case RESET:
-      delta = 0;
+      buzz_in_time = 0;
       Pressed = false;
+      SendMsgClient(rec_device_id,rec_msg,timing);
       break;
     case TIMING:
       break;
@@ -56,9 +57,9 @@ void ResetClient(){
 void IRAM_ATTR TooglePressed(){
   if(!Pressed){
     Pressed = true;
-    delta = micros()-start;
-    Serial.printf("%dn",Pressed);
-    Serial.printf("%llu\n",delta);
+    buzz_in_time = micros();
+//    Serial.printf("%dn",Pressed);
+//    Serial.printf("%llu\n",buzz_in_time);
   }
 }
 
@@ -66,7 +67,7 @@ void UpdateClientDisplay(){
   display.clearDisplay();
   display.setCursor(0,0);
   display.printf("Device ID:%d\n",DEVICE_ID);
-  display.printf("Pressed:%llu\n",delta);
+  display.printf("Pressed:%llu\n",buzz_in_time);
   display.display();
 }
 
@@ -90,7 +91,7 @@ void setup() {
   display.clearDisplay();
   display.setCursor(0,0);
   display.printf("Device ID:%d\n",DEVICE_ID);
-  display.printf("Pressed:%llu\n",delta);
+  display.printf("Pressed:%llu\n",buzz_in_time);
   display.display();
   Serial.begin(115200);
   pinMode(ENABLE_PIN,OUTPUT);
