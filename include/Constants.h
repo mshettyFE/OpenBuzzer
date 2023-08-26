@@ -18,7 +18,7 @@ const int ENABLE_PIN = 2;
 const int MAX_DEVICES = 5;
 
 // Response wait time in microseconds
-const uint64_t WAIT_TIME = 10000000;
+const uint64_t WAIT_TIME = 1000000;
 
 // Start and end characters for messages
 const char start_marker = '!';

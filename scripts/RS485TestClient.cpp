@@ -1,16 +1,8 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include "Constants.h"
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
-int ENABLE_PIN = 2;
-
-char start_marker = '!';
-char end_marker = '@';
-
-const byte bufferSize = 32;
 byte buffer_index = 0;
 char buffer[bufferSize];
 
