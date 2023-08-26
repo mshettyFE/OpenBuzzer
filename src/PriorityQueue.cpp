@@ -1,6 +1,7 @@
 #include "Constants.h"
 #include "PriorityQueue.h"
 #include <math.h>
+#include <stdio.h>
 
 PriorityQueue::PriorityQueue(uint8_t devices_alive){
 // priority queue is empty
@@ -12,9 +13,34 @@ PriorityQueue::PriorityQueue(uint8_t devices_alive){
   else{
     dev_alive = devices_alive;
   }
+// Fill priority queue with empty records
+  for(int i=0; i< MAX_DEVICES; ++i){
+    heap[i] = {0,0};
+  }
 }
 
 PriorityQueue::~PriorityQueue(){}
+
+bool PriorityQueue::SetDevAlive(uint8_t devices_alive){
+  if(devices_alive>MAX_DEVICES && devices_alive < 0){
+    return false;
+  }
+  dev_alive = devices_alive;
+  Clear();
+  return true;
+}
+
+void PriorityQueue::Clear(){
+  for(int i=0; i< dev_alive; ++i){
+    Pop();
+  }
+}
+
+
+uint8_t PriorityQueue::GetDevAlive(){
+    return dev_alive;
+};
+
 
 uint8_t PriorityQueue::GetLength(){
     return length;
@@ -34,52 +60,162 @@ int PriorityQueue::Right(uint8_t index){
     return 2*index+2;
 }
 
-bool PriorityQueue::ShiftUp(uint8_t index){
-// Swaps node with it's parent unconditionally. Will destroy the binary heap structure if not properly managed
-// can't move elements if they don't exists (need to make sure that Insert properly updates length)
-    if(length==0){
+bool  PriorityQueue::Insert(Rec record){
+// if adding one more value will exceed the total number of devices currently alive, then exit early
+    if(length+1 > dev_alive){
         return false;
     }
-    int ParentIndex = Parent(index);
-// We are trying to swap the root up one. Invalid operation
-// We also check that we aren't out of bounds of the heap
-    if(ParentIndex==-1 || ParentIndex >= length){
+// Sanity check
+    if(length+1 > MAX_DEVICES){
         return false;
     }
-    Rec temp = heap[index];
-    heap[index] = heap[ParentIndex];
-    heap[ParentIndex] =  temp;
+// Edit length, insert record at end of heap, then heapify up to restore min heap property
+    length += 1;
+    heap[length-1] = record;    
+    HeapifyUp(length-1);
     return true;
 }
 
-bool PriorityQueue::ShiftDownLeft(uint8_t index){
-    if(length==0){
-        return false;
-    }
-    int LeftIndex = Left(index);
-// The maximum allowed index is length-1. Hence, if the projected index is larger than this, we can't shift down
-// Once again, this depends on Insert properly adjusting length
-    if(LeftIndex==-1 || LeftIndex >= length){
-        return false;
-    }
-    Rec temp = heap[index];
-    heap[index] = heap[LeftIndex];
-    heap[LeftIndex] =  temp;
-    return true;
+Rec PriorityQueue::Pop(){
+  Rec Output;
+// Check if length  equals 0. If it does, then return empty node
+  if(length==0){
+    Output = {0,0};
+    return Output;
+  }
+// If length is equal to 1, return Root Node and empty Queue
+  if(length==1){
+    Output = heap[0];
+    heap[0] = {0,0};
+    length = length -1;
+    return Output;
+  }
+// Other cases: We set the output to root, set root to 0, move last element to root, then Heapifydown to restore binary heap property
+  Output = heap[0];
+  heap[0] = heap[length-1];
+  heap[length-1] = {0,0};
+  HeapifyDown(0);
+  length = length-1;
+  return Output;
 }
 
-bool PriorityQueue::ShiftDownRight(uint8_t index){
-    if(length==0){
-        return false;
+
+void PriorityQueue::HeapifyUp(uint8_t current_index){
+// Check if current index is valid. If not, return
+    if(current_index <0 || current_index>=MAX_DEVICES){
+        return;
     }
-    int RightIndex = Right(index);
-// The maximum allowed index is length-1. Hence, if the projected index is larger than this, we can't shift down
-// Once again, this depends on Insert() properly adjusting length
-    if(RightIndex==-1 || RightIndex >= length){
-        return false;
+// Get parent node of current index and check if out of bounds
+    int ParentIndex = Parent(current_index);
+    if(ParentIndex <0 || ParentIndex>=MAX_DEVICES){
+        return;
     }
-    Rec temp = heap[index];
-    heap[index] = heap[RightIndex];
-    heap[RightIndex] =  temp;
-    return true;
+// If current_index is the root node, we stop
+    if(current_index==0){
+        return;
+    }
+// Check if Parent node is empty (device_id and timing are both 0). If the node is empty, then we unconditionally swap nodes and recurse up
+    Rec temp = heap[ParentIndex];
+    if(temp.device_id==0 && temp.timing==0){
+        heap[ParentIndex] = heap[current_index];
+        heap[current_index] = temp;
+        HeapifyUp(ParentIndex);
+        return;
+    }
+
+// If the node is non-empty, then we only recurse up if the parent node has a larger timing than the current node
+    if( temp.timing > heap[current_index].timing){
+        heap[ParentIndex] = heap[current_index];
+        heap[current_index] = temp;
+        HeapifyUp(ParentIndex);
+        return;
+    }
 }
+
+void PriorityQueue::HeapifyDown(uint8_t current_index){
+// Check if current index is valid. If not, return
+    if(current_index <0 || current_index>=MAX_DEVICES){
+        return;
+    }
+// Check if left and right indicies are valid
+    int LeftIndex = Left(current_index);
+    int RightIndex = Right(current_index);
+    bool leftValid, rightValid;
+    if(LeftIndex <0 || LeftIndex>=MAX_DEVICES){
+        leftValid = true;
+    }
+    if(RightIndex <0 || RightIndex>=MAX_DEVICES){
+        rightValid = true;
+    }
+// check if left and right index are occupied. If index is invalid ,treat as empty node
+    bool LeftEmpty, RightEmpty;
+    Rec LeftNode, RightNode;
+    if(leftValid){
+        LeftNode = heap[LeftIndex];
+        if(LeftNode.device_id==0 && LeftNode.timing==0){
+            LeftEmpty = true;
+        }
+        else{
+          LeftEmpty = false;
+        }
+    }
+    else{
+        LeftEmpty = true;
+    }
+    if(rightValid){
+        RightNode = heap[RightIndex];
+        if(RightNode.device_id==0 && RightNode.timing==0){
+            RightEmpty = true;
+        }
+        else{
+          RightEmpty = false;
+        }
+    }
+    else{
+        RightEmpty = true;
+    }
+// 4 cases to consider:
+//Both left and right are empty. This means current index is a leaf. Do nothing
+    if(LeftEmpty&&RightEmpty){
+        return;
+    }
+// Left is empty, but right is not. Check if we need to recurse on right (ie. check if right is smaller than current)
+    if(LeftEmpty&&!RightEmpty){
+        if(RightNode.timing < heap[current_index].timing){
+            heap[RightIndex]= heap[current_index];
+            heap[current_index] = RightNode;
+            HeapifyDown(RightIndex);
+        }
+            return;
+    }
+// Right is empty, but left is not. Check if we need to recurse on left (ie. check if left is smaller than current)
+    if(!LeftEmpty&&RightEmpty){
+        if(LeftNode.timing < heap[current_index].timing){
+            heap[LeftIndex]= heap[current_index];
+            heap[current_index] = LeftNode;
+            HeapifyDown(LeftIndex);
+        }
+            return;
+    }
+// neither nodes are empty. Compare which node is smaller, then swap if needed
+    if(!LeftEmpty&&!RightEmpty){
+        if(LeftNode.timing < RightNode.timing){
+          if(LeftNode.timing < heap[current_index].timing){
+            heap[LeftIndex]= heap[current_index];
+            heap[current_index] = LeftNode;
+            HeapifyDown(LeftIndex);
+          }
+          return;
+        }
+        else{
+          if(RightNode.timing < heap[current_index].timing){
+              heap[RightIndex]= heap[current_index];
+              heap[current_index] = RightNode;
+              HeapifyDown(RightIndex);
+          }
+          return;
+        }
+    }
+    return;
+}
+

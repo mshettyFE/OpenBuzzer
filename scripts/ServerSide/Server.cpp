@@ -124,7 +124,7 @@ void ResetDevices(uint64_t WaitTime){
 
   for(int Device=1; Device<=MAX_DEVICES; Device++){
     if(DevicesAlive[Device]){
-  // Fire off RESET message for device Device. It is the Client's problem to receive the message
+  // Fire off RESET message for device Device
       SendMsgServer(Device,RESET);
   // set up local timing variables
       start_time = micros();
