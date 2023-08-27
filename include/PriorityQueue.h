@@ -13,14 +13,15 @@ private:
     uint8_t dev_alive;
     uint8_t length;
 public:
-      PriorityQueue(uint8_t dev_alive);
-      ~PriorityQueue();
-      bool Insert(Rec record);
-      Rec Pop();
-      void Clear();
-      bool SetDevAlive(uint8_t devices_alive);
-      uint8_t GetDevAlive();
-      uint8_t GetLength();
+    PriorityQueue(uint8_t dev_alive);
+    ~PriorityQueue();
+    bool Insert(Rec record);
+    Rec Pop();
+    void Clear();
+    bool SetDevAlive(uint8_t devices_alive);
+    uint8_t GetDevAlive();
+    uint8_t GetLength();
+    void PrintHeap();
 private:
 // Get Parent of Node
       int Parent(uint8_t index);

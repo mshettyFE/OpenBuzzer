@@ -25,8 +25,8 @@ bool PriorityQueue::SetDevAlive(uint8_t devices_alive){
   if(devices_alive>MAX_DEVICES && devices_alive < 0){
     return false;
   }
-  dev_alive = devices_alive;
   Clear();
+  dev_alive = devices_alive;
   return true;
 }
 
@@ -34,6 +34,7 @@ void PriorityQueue::Clear(){
   for(int i=0; i< dev_alive; ++i){
     Pop();
   }
+  length = 0;
 }
 
 
@@ -61,6 +62,10 @@ int PriorityQueue::Right(uint8_t index){
 }
 
 bool  PriorityQueue::Insert(Rec record){
+// Can't insert empty record
+    if(record.timing==0 && record.device_id==0){
+        return false;
+    }
 // if adding one more value will exceed the total number of devices currently alive, then exit early
     if(length+1 > dev_alive){
         return false;
@@ -219,3 +224,8 @@ void PriorityQueue::HeapifyDown(uint8_t current_index){
     return;
 }
 
+void PriorityQueue::PrintHeap(){
+    for(int i=0; i<MAX_DEVICES; ++i){
+        printf("%d,%d,%lu\n",i,heap[i].device_id,heap[i].timing);
+    }
+}
