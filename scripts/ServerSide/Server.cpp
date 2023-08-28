@@ -36,6 +36,9 @@ uint64_t timing;
 // Reset flag
 bool reset_flag  = false;
 
+// Who is currently Locked in
+int locked_in_device = INVALID_DEVICE;
+
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -76,9 +79,6 @@ bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_i
     if(timing==0){
       return true;
     }
-//Set flag to take note of this for future cycles
-      BuzzedIn[rec_device_id] = true;
-
 /* There is a problem with this code. Suppose that one client connects much later that the rest of the clients.
  Most clients roll over, but the lagging client doesn't.
  When all clients buzzing, the lagging client will have a much higher time compared to the others.
@@ -101,11 +101,17 @@ bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_i
         rc  = {rec_device_id,timing};
       }
 // Try to insert device into priority queue
-      BuzzInTimes.Insert(rc);
+      if(!BuzzInTimes.Insert(rc)){
+        BuzzedIn[rec_device_id] = false;
+      }
+      else{
+        BuzzedIn[rec_device_id] = true;
+      }
       break;
-// These are just acknowledgment payloads.
     case LOCK_IN:
+         break;
     case RESET:
+        break;
     case INVALID:
     default:
       break;
@@ -141,7 +147,7 @@ void ServerPostPollingActions(MessageType msg){
 // There should not be any repeats since ServerAction prevents that via BuzzedIn bool array
       while(BuzzInTimes.GetLength() != 0){
         Rec cur = BuzzInTimes.Pop();
-        if(cur.device_id==0){
+        if(cur.device_id==INVALID_DEVICE){
           continue;
         }
 // Something horrible happened if this if statement gets triggered
@@ -151,10 +157,13 @@ void ServerPostPollingActions(MessageType msg){
         Rankings[RankingIndex] = cur.device_id;
         RankingIndex++;
       }
+      locked_in_device = Rankings[0];
       break;
     case RESET:
 // turn of reset flag so that we don't immediately trigger reset again
       reset_flag  = false;
+// set winner to nothing
+      locked_in_device = 0;
 // Clear Priority queue
       BuzzInTimes.Clear();
 // Set last slot of BuzzedIn to false
@@ -170,6 +179,7 @@ void ServerPostPollingActions(MessageType msg){
       break;
 // Don't do anything on these messages
     case LOCK_IN:
+      break;
     case INVALID:
     default:
       break;
@@ -181,6 +191,10 @@ void SendMessage(int Device, uint64_t WaitTime, MessageType msg){
   uint8_t buffer_index, received_device_id;
   uint64_t start_time,end_time;
   MessageType received_msg;
+// dont send anything if Device=0
+  if(Device==0){
+    return;
+  }
 // Fire off message for device Device
   SendMsgServer(Device,msg);
 // set up local timing variables
@@ -193,7 +207,7 @@ void SendMessage(int Device, uint64_t WaitTime, MessageType msg){
   end_time = micros();
 // wait for message for at most WaitTime microseconds
   while((end_time-start_time) < WaitTime){
-    RecieveChar(buffer, buffer_index, msg_start, msg_end);
+    ReceiveChar(buffer, buffer_index, msg_start, msg_end);
     if(msg_end && msg_start){
       ParseMsgServer(buffer,received_device_id,received_msg,timing);
       break;
@@ -231,7 +245,8 @@ void UpdateServerDisplayDebug(){
   }
   display.printf("\n");
 // Print 
-  display.printf("\nOffset:%llu",synchronized_start_time);
+  display.printf("\nOffset: %llu",synchronized_start_time);
+  display.printf("\nLocked: %d",locked_in_device);
   display.display();
 }
 
@@ -254,26 +269,21 @@ void setup() {
   for(int Device=0; Device<MAX_DEVICES; Device++){
     Rankings[Device] = 0;
   }
-
 // Scan all devices to check ALIVE connections and get global offset time
   ScanForDevices(WAIT_TIME,ALIVE);
   ServerPostPollingActions(ALIVE);
 }
 
 void loop() {
-  ScanForDevices(WAIT_TIME,TIMING);
-  ServerPostPollingActions(TIMING);
-// If the top rank is filled, that means someone buzzed in
-//  if(Rankings[0]!=0){
-//  ScanForDevices(WAIT_TIME,LOCK_IN);  
-  SendMessage(Rankings[0],WAIT_TIME,LOCK_IN);
-//  }
+//  ScanForDevices(WAIT_TIME,TIMING);
+//  ServerPostPollingActions(TIMING);
+// Send Message to Top Ranker
+//  SendMessage(Rankings[0],WAIT_TIME,LOCK_IN);
   if(reset_flag){
 // Check if any new connections joined. Also to update synchronization time
-
 // Need to remove ALIVE messages in final version. You will be able to RESCAN via the web app
-    ScanForDevices(WAIT_TIME,ALIVE);
-    ServerPostPollingActions(ALIVE);
+//    ScanForDevices(WAIT_TIME,ALIVE);
+//    ServerPostPollingActions(ALIVE);
 // Reset buzzIn on all devices
     ScanForDevices(WAIT_TIME,RESET);
     ServerPostPollingActions(RESET);

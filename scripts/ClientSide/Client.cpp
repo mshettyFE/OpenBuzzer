@@ -6,19 +6,19 @@
 #include "Constants.h"
 #include "SerialParsing.h"
 
-const int DEVICE_ID  = 3;
+const int DEVICE_ID  = 2;
 
 bool Pressed = false;
 
 int count = 0;
 
-bool locked_in = false;
+bool this_buzzer_locked_in = false;
 
 bool msg_start,msg_end;
 uint8_t buffer_index, received_device_id;
 MessageType received_msg;
 
-uint64_t buzz_in_time =0;
+uint64_t buzz_in_time;
 // Buffer for incoming message;
 char buffer[bufferSize];
 
@@ -30,42 +30,50 @@ void UpdateClientDisplayDebug(){
   display.setCursor(0,0);
   display.printf("Device ID:%d\n",DEVICE_ID);
   display.printf("Pressed:%llu\n",buzz_in_time);
-  display.printf("Locked In:%d\n",locked_in);
+  display.printf("Locked In:%d\n",this_buzzer_locked_in);
   display.printf("%d\n",count++);
   display.display();
 }
 
-bool ClientAction(MessageType rec_msg, uint8_t rec_device_id, uint8_t exp_device_id){
-  if( rec_device_id!= exp_device_id){
+bool ClientAction(MessageType rec_msg, int rec_device_id){
+  if( rec_device_id!= DEVICE_ID){
     return false;
   }
   switch(rec_msg){
     case ALIVE:
-      SendMsgClient(rec_device_id,ALIVE,micros());
-      return true;
+    {
+      SendMsgClient(DEVICE_ID,ALIVE,micros());
       break;
+    }
     case RESET:
+    {
       buzz_in_time = 0;
       Pressed = false;
-      locked_in = false;
-      SendMsgClient(rec_device_id,RESET,0);
-      return true;
+      this_buzzer_locked_in = false;
+      SendMsgClient(DEVICE_ID,RESET,0);
       break;
+    }
     case TIMING:
-      SendMsgClient(rec_device_id,TIMING,buzz_in_time);
-      return true;
+    {
+      SendMsgClient(DEVICE_ID,TIMING,buzz_in_time);
       break;
+    }
     case LOCK_IN:
-      SendMsgClient(rec_device_id,LOCK_IN,0);
-      locked_in = true;
-      return true;
+    {
+      SendMsgClient(DEVICE_ID,LOCK_IN,0);
+      this_buzzer_locked_in = true;
+      Serial.printf("\n\nLockedIn\n\n");
+      delay(1000);
       break;
+    }
     case INVALID:
     default:
-      SendMsgClient(rec_device_id,INVALID,0);
+    {
+      SendMsgClient(DEVICE_ID,INVALID,0);
       break;
+    }
   }
-  return false;
+  return true;
 }
 
 void IRAM_ATTR TooglePressed(){
@@ -78,23 +86,33 @@ void IRAM_ATTR TooglePressed(){
 }
 
 void ScanForCommands(){
+  bool valid = false;
   while(1){
     UpdateClientDisplayDebug();
-    RecieveChar(buffer,buffer_index,msg_start,msg_end);
+    ReceiveChar(buffer,buffer_index,msg_start,msg_end);
     if(msg_end && msg_start){
-      ParseMsgClient(buffer,received_device_id,received_msg);
-      ClientAction(received_msg,received_device_id,DEVICE_ID);
+      valid = ParseMsgClient(buffer,received_device_id,received_msg);
+// WE got a valid message from the server. Perform an action
+      if(valid){
+        ClientAction(received_msg,received_device_id);
+      }
+// We got an invalid message. send an INVALID response
+      else{
+        ClientAction(INVALID,DEVICE_ID);
+      }
       received_msg = INVALID;
-      received_device_id = 0;
+      received_device_id = INVALID_DEVICE;
       msg_start = false;
       msg_end = false;
       buffer_index = 0;
+      valid = true;
       break;
     }
   }
 }
 
 void setup() {
+  buzz_in_time = 0;
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.setTextSize(1);
   display.setTextColor(WHITE);
@@ -109,7 +127,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(TRIGGER_PIN), TooglePressed, FALLING);
   digitalWrite(ENABLE_PIN,LOW);
   received_msg = INVALID;
-  received_device_id = 0;
+  received_device_id = INVALID_DEVICE;
   msg_start = false;
   msg_end = false;
   buffer_index = 0;

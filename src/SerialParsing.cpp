@@ -5,7 +5,20 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-void RecieveChar(char* buffer, uint8_t& buffer_index, bool& msg_start,bool& msg_end){
+bool SetInvalidServer(uint8_t device_id, MessageType& msgt,uint64_t&& timing){
+    msgt = INVALID;
+    device_id = 0;
+    timing = 0;
+    return false;
+}
+
+bool SetInvalidClient(uint8_t device_id, MessageType& msgt){
+    msgt = INVALID;
+    device_id = 0;
+    return false;
+}
+
+void ReceiveChar(char* buffer, uint8_t& buffer_index, bool& msg_start,bool& msg_end){
 // read in a single character from the bus if available
   char rc;
   while(Serial.available() > 0 ){
@@ -45,26 +58,32 @@ void RecieveChar(char* buffer, uint8_t& buffer_index, bool& msg_start,bool& msg_
   }
 }
 
-void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_t& timing){
+bool ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_t& timing){
 // Assumes message has one of two forms:
-// !%d#%d@ where the first %d is the message type and second %d is device ID
-// !%d#%d#%llu@ where first %d is the message type, second %d is device ID, %, and %llu is a time
+// !%d#%d#%d@ where the first %d is sender_id,  second %d is the message type and third %d is device ID
+// !%d#%d#%d#%llu@ where the first %d is sender_id, second %d is the message type, third %d is device ID, %, and %llu is a time
 
+// Check Sender ID
   char* endIndex = strtok(buffer,delimiter);
+  if(endIndex==NULL){
+    return SetInvalidServer(device_id,MSGT,timing);
+  }
+  int sender_id = atoi(endIndex);
+  if(sender_id!=CLIENT){
+    return SetInvalidServer(device_id,MSGT,timing);
+  }
+// Check Device ID
+  char* endIndex = strtok(NULL,delimiter);
 // invalid message rest of message irrelevant
   if(endIndex==NULL){
-    MSGT = INVALID;
-    device_id = 0;
-    return ;
+    return SetInvalidServer(device_id,MSGT,timing);
   }
 
 // First variable should be the MessageType. Since the enum is contiguous, we can check if atoi() returns something below or above valid range of enum
   int temp = atoi(endIndex); 
 // invalid message type
   if(temp<ALIVE || temp>RESET){
-    MSGT = INVALID;
-    device_id = 0;
-    return ;
+    return SetInvalidServer(device_id,MSGT,timing);
   }
   else{
     switch(temp){
@@ -79,20 +98,17 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
           break;
       case RESET:
           MSGT = RESET;
+          break;
       case INVALID:
-      default:
-        MSGT = INVALID;
-        device_id = 0;
-        return ;
-    }
+     default:
+        return SetInvalidServer(device_id,MSGT,timing);
+   }
   }
 
 // Grab next part
   endIndex = strtok(NULL, delimiter);
   if(endIndex==NULL){
-    MSGT = INVALID;
-    device_id = 0;
-    return ;
+    return SetInvalidServer(device_id,MSGT,timing);
   }
 
 // Switch on what MSGT is. 
@@ -103,19 +119,16 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
     case ALIVE:
     case TIMING:
       device_id = atoi(endIndex);
-      if(device_id<1 || device_id > MAX_DEVICES){
-        return;
+      if(device_id<1 || device_id > MAX_DEVICES || device_id==INVALID_DEVICE){
+        return SetInvalidServer(device_id,MSGT,timing);
       }
       endIndex = strtok(NULL, delimiter);
       if(endIndex==NULL){
-        timing = 0;
-        return ;
+        return SetInvalidServer(device_id,MSGT,timing);
       }
       timing = strtoull(endIndex,NULL,10);
       if(errno==ERANGE){
-        MSGT = INVALID;
-        device_id = 0;
-        return ;
+        return SetInvalidServer(device_id,MSGT,timing);
       }
       break;
 // Cascade these together since all of these messages are good
@@ -125,44 +138,47 @@ void ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
     default:
       break;
   }
-  return ;
+  return true;
 }
 
-void ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
+bool ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
 // Assumes message has the following form:
-// !%d#%d@ where the first %d is the device_id and second %d is message type
-// NOTE: This is the opposite of what the server expects (message type and device ID)
+// !%d#%d#%d@ where the first %d is either SERVER or CLIENT, the second %d is the device_id and third %d is message type
 
+// Check if first character is from SERVER
   char* endIndex = strtok(buffer,delimiter);
 // If we read nothing, return invalid message
   if(endIndex==NULL){
-    MSGT = INVALID;
-    device_id = 0;
-    return ;
+    return SetInvalidClient(device_id,MSGT);
+  }
+  int sender_id = atoi(endIndex);
+  if(sender_id!=SERVER){
+    return false;
+  }
+
+// Check device ID
+  endIndex = strtok(NULL,delimiter);
+// If we read nothing, return invalid message
+  if(endIndex==NULL){
+    return SetInvalidClient(device_id,MSGT);
   }
 // check if device_id is valid
   device_id = atoi(endIndex);
   if(device_id<1 || device_id > MAX_DEVICES){
-    MSGT = INVALID;
-    device_id = 0;
-    return;
+    return SetInvalidClient(device_id,MSGT);
   }
 
 // Grab next part
   endIndex = strtok(NULL, delimiter);
   if(endIndex==NULL){
-    MSGT = INVALID;
-    device_id = 0;
-    return ;
+    return SetInvalidClient(device_id,MSGT);
   }
 
 // This should be the MessageType. Since the enum is contiguous, we can check if atoi() returns something below or above valid range of enum
   int temp = atoi(endIndex);
 // invalid message type
   if(temp<ALIVE || temp>RESET){
-    MSGT = INVALID;
-    device_id = 0;
-    return ;
+    return SetInvalidClient(device_id,MSGT);
   }
   else{
     switch(temp){
@@ -177,30 +193,19 @@ void ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
         break;
       case LOCK_IN:
         MSGT = LOCK_IN;
+        break;
       case INVALID:
       default:
-        MSGT = INVALID;
-        device_id = 0;
-        return ;
+        return SetInvalidClient(device_id,MSGT);
     }
   }
-  return ;
+  return true;
 }
 
 void SendMsgServer(uint8_t Device_ID, MessageType msgt, uint64_t start){
 // turn on transmission
     digitalWrite(ENABLE_PIN,HIGH);
-    switch(msgt){
-      case ALIVE:
-      case TIMING:
-      case LOCK_IN:
-      case RESET:
-        Serial.printf("!%d#%d@",Device_ID,msgt);
-        break;
-      case INVALID:
-      default:
-      break;
-    }
+    Serial.printf("!%d#%d#%d@",SERVER,Device_ID,msgt);
 // Make sure data is written to bus. Currently is blocking, so can't reset in while server is sending. Shouldn't be a problem though?
   Serial.flush();
 // turn on receiving
@@ -214,17 +219,17 @@ void SendMsgClient(uint8_t Device_ID, MessageType msgt, uint64_t timing){
   switch(msgt){
     case TIMING:
 // The client sends out the time they buzzed in. Not buzzing in corresponds to a time of 0
-      Serial.printf("!%d#%d#%llu@",msgt,Device_ID, timing);
+      Serial.printf("!%d$%d#%d#%llu@",CLIENT,TIMING,Device_ID, timing);
       break;
     case ALIVE:
 // The client sends out the current time since the client started up
-      Serial.printf("!%d#%d#%lu@",msgt,Device_ID, micros());
+      Serial.printf("!%d#%d#%d#%lu@",CLIENT,ALIVE,Device_ID, micros());
       break;
     case LOCK_IN:
     case RESET:
     case INVALID:
     default:
-      Serial.printf("!%d#%d@",msgt,Device_ID);
+      Serial.printf("!%d#%d#%d@",CLIENT,msgt,Device_ID);
 // send back generic response stating message type and device ID
       break;
   }

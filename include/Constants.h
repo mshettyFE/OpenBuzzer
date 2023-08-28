@@ -12,7 +12,11 @@ const int SCREEN_HEIGHT =  64; // OLED display height, in pixels
 // LOCK_IN is used to set a client as buzzed in
 // RESET is used to clear state of devices
 
-enum MessageType {INVALID,ALIVE,TIMING,LOCK_IN, RESET};
+enum MessageType {INVALID=0,ALIVE=1,TIMING=2,LOCK_IN=3, RESET=4};
+
+enum SenderType {SERVER=1, CLIENT=2};
+
+const int INVALID_DEVICE = 0;
 
 // ENABLE_PIN to toggle between transmit and receive
 const int ENABLE_PIN = 2;
@@ -24,7 +28,7 @@ const int TRIGGER_PIN = 14;
 const int MAX_DEVICES = 5;
 
 // Testing response wait time in microseconds.
-const uint64_t WAIT_TIME = 100000;
+const uint64_t WAIT_TIME = 1000000;
 // Actual response time. Seems to work out...
 //const uint64_t WAIT_TIME = 50000;
 
