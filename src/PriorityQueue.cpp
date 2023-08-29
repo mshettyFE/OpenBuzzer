@@ -226,6 +226,6 @@ void PriorityQueue::HeapifyDown(uint8_t current_index){
 
 void PriorityQueue::PrintHeap(){
     for(int i=0; i<MAX_DEVICES; ++i){
-        printf("%d,%d,%lu\n",i,heap[i].device_id,heap[i].timing);
+        printf("%d,%d,%llu\n",i,heap[i].device_id,heap[i].timing);
     }
 }

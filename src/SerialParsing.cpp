@@ -5,7 +5,7 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-bool SetInvalidServer(uint8_t device_id, MessageType& msgt,uint64_t&& timing){
+bool SetInvalidServer(uint8_t device_id, MessageType& msgt,uint64_t& timing){
     msgt = INVALID;
     device_id = 0;
     timing = 0;
@@ -60,10 +60,15 @@ void ReceiveChar(char* buffer, uint8_t& buffer_index, bool& msg_start,bool& msg_
 
 bool ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_t& timing){
 // Assumes message has one of two forms:
-// !%d#%d#%d@ where the first %d is sender_id,  second %d is the message type and third %d is device ID
-// !%d#%d#%d#%llu@ where the first %d is sender_id, second %d is the message type, third %d is device ID, %, and %llu is a time
+// !%d#%d#%d@ where the first %d is sender_id, second %d is device ID and   third %d is the message type 
+// !%d#%d#%d#%llu@ where the first %d is sender_id, second %d is device ID, and  third %d is the message type and %llu is a time
 
 // Check Sender ID
+  if(debug){
+    Serial.printf("\nClient");
+    Serial.println(buffer);
+    Serial.printf("\n");
+  }
   char* endIndex = strtok(buffer,delimiter);
   if(endIndex==NULL){
     return SetInvalidServer(device_id,MSGT,timing);
@@ -73,13 +78,21 @@ bool ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
     return SetInvalidServer(device_id,MSGT,timing);
   }
 // Check Device ID
-  char* endIndex = strtok(NULL,delimiter);
+  endIndex = strtok(NULL,delimiter);
 // invalid message rest of message irrelevant
   if(endIndex==NULL){
     return SetInvalidServer(device_id,MSGT,timing);
   }
-
-// First variable should be the MessageType. Since the enum is contiguous, we can check if atoi() returns something below or above valid range of enum
+  device_id = atoi(endIndex);
+  if(device_id<1 || device_id>MAX_DEVICES){
+    return SetInvalidServer(device_id,MSGT,timing);
+  }
+// Parse message type. For ALIVE and TIMING, check for additional timing info
+  endIndex = strtok(NULL,delimiter);
+// invalid message rest of message irrelevant
+  if(endIndex==NULL){
+    return SetInvalidServer(device_id,MSGT,timing);
+  }
   int temp = atoi(endIndex); 
 // invalid message type
   if(temp<ALIVE || temp>RESET){
@@ -89,9 +102,27 @@ bool ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
     switch(temp){
       case ALIVE:
         MSGT = ALIVE;
+        // Grab next part
+        endIndex = strtok(NULL, delimiter);
+        if(endIndex==NULL){
+          return SetInvalidServer(device_id,MSGT,timing);
+        }
+        timing = strtoul(endIndex,NULL,10);
+        if(errno){
+          return SetInvalidServer(device_id,MSGT,timing);
+        }
         break;
       case TIMING:
         MSGT = TIMING;
+        // Grab next part
+        endIndex = strtok(NULL, delimiter);
+        if(endIndex==NULL){
+          return SetInvalidServer(device_id,MSGT,timing);
+        }
+        timing = strtoul(endIndex,NULL,10);
+        if(errno){
+          return SetInvalidServer(device_id,MSGT,timing);
+        }
         break;
       case LOCK_IN:
           MSGT = LOCK_IN;
@@ -104,47 +135,17 @@ bool ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
         return SetInvalidServer(device_id,MSGT,timing);
    }
   }
-
-// Grab next part
-  endIndex = strtok(NULL, delimiter);
-  if(endIndex==NULL){
-    return SetInvalidServer(device_id,MSGT,timing);
-  }
-
-// Switch on what MSGT is. 
-  switch(MSGT){
-// Timing  and Alive both expect an unsigned long as well
-// Alive expects a time to properly set the offset
-// Timing expects a time to properly determined who buzzed in
-    case ALIVE:
-    case TIMING:
-      device_id = atoi(endIndex);
-      if(device_id<1 || device_id > MAX_DEVICES || device_id==INVALID_DEVICE){
-        return SetInvalidServer(device_id,MSGT,timing);
-      }
-      endIndex = strtok(NULL, delimiter);
-      if(endIndex==NULL){
-        return SetInvalidServer(device_id,MSGT,timing);
-      }
-      timing = strtoull(endIndex,NULL,10);
-      if(errno==ERANGE){
-        return SetInvalidServer(device_id,MSGT,timing);
-      }
-      break;
-// Cascade these together since all of these messages are good
-    case LOCK_IN:
-    case RESET:
-    case INVALID:
-    default:
-      break;
-  }
   return true;
 }
 
 bool ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
 // Assumes message has the following form:
 // !%d#%d#%d@ where the first %d is either SERVER or CLIENT, the second %d is the device_id and third %d is message type
-
+  if(debug){
+    Serial.printf("\nServer");
+    Serial.println(buffer);
+    Serial.printf("\n");
+  }
 // Check if first character is from SERVER
   char* endIndex = strtok(buffer,delimiter);
 // If we read nothing, return invalid message
@@ -202,8 +203,11 @@ bool ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
   return true;
 }
 
-void SendMsgServer(uint8_t Device_ID, MessageType msgt, uint64_t start){
+void SendMsgServer(uint8_t Device_ID, MessageType msgt){
 // turn on transmission
+  if(debug){
+    Serial.printf("Send:%d,%d\n",Device_ID,msgt);
+  }
     digitalWrite(ENABLE_PIN,HIGH);
     Serial.printf("!%d#%d#%d@",SERVER,Device_ID,msgt);
 // Make sure data is written to bus. Currently is blocking, so can't reset in while server is sending. Shouldn't be a problem though?
@@ -214,22 +218,27 @@ void SendMsgServer(uint8_t Device_ID, MessageType msgt, uint64_t start){
 
 void SendMsgClient(uint8_t Device_ID, MessageType msgt, uint64_t timing){
 // turn on transmission
+  if(debug){
+    Serial.printf("Send:%d,%d,%llu\n",Device_ID,msgt,timing);
+  }
   digitalWrite(ENABLE_PIN,HIGH);
 // print formatted message
   switch(msgt){
     case TIMING:
 // The client sends out the time they buzzed in. Not buzzing in corresponds to a time of 0
-      Serial.printf("!%d$%d#%d#%llu@",CLIENT,TIMING,Device_ID, timing);
+      Serial.printf("!%d#%d#%d#%llu@",CLIENT,Device_ID,msgt, timing);
       break;
     case ALIVE:
 // The client sends out the current time since the client started up
-      Serial.printf("!%d#%d#%d#%lu@",CLIENT,ALIVE,Device_ID, micros());
+      Serial.printf("!%d#%d#%d#%lu@",CLIENT,Device_ID,msgt, micros());
       break;
     case LOCK_IN:
     case RESET:
+      Serial.printf("!%d#%d#%d@",CLIENT,Device_ID,msgt);
+      break;
+// Don't send a response if invalid
     case INVALID:
     default:
-      Serial.printf("!%d#%d#%d@",CLIENT,msgt,Device_ID);
 // send back generic response stating message type and device ID
       break;
   }

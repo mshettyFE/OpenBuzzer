@@ -36,9 +36,6 @@ uint64_t timing;
 // Reset flag
 bool reset_flag  = false;
 
-// Who is currently Locked in
-int locked_in_device = INVALID_DEVICE;
-
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
@@ -47,6 +44,9 @@ void IRAM_ATTR TogglePressed(){
 }
 
 bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_id, uint8_t exp_device_id, uint64_t timing){
+  if(v_debug){
+    Serial.printf("\nAction:%d,%d,%d,%d,%llu\n",rec_msg,exp_msg,rec_device_id,exp_device_id,timing);
+  }
   if(rec_msg!=exp_msg && rec_device_id!= exp_device_id){
     switch(exp_msg){
       case ALIVE:
@@ -157,15 +157,13 @@ void ServerPostPollingActions(MessageType msg){
         Rankings[RankingIndex] = cur.device_id;
         RankingIndex++;
       }
-      locked_in_device = Rankings[0];
       break;
     case RESET:
 // turn of reset flag so that we don't immediately trigger reset again
       reset_flag  = false;
-// set winner to nothing
-      locked_in_device = 0;
 // Clear Priority queue
       BuzzInTimes.Clear();
+      Serial.printf("\n\n\n%d\n\n\n",BuzzInTimes.GetLength());
 // Set last slot of BuzzedIn to false
       BuzzedIn[MAX_DEVICES] = false;
 // Set RankingIndex to first item
@@ -205,21 +203,31 @@ void SendMessage(int Device, uint64_t WaitTime, MessageType msg){
   buffer_index = 0;
   start_time = micros();
   end_time = micros();
+  bool v;
 // wait for message for at most WaitTime microseconds
   while((end_time-start_time) < WaitTime){
     ReceiveChar(buffer, buffer_index, msg_start, msg_end);
     if(msg_end && msg_start){
-      ParseMsgServer(buffer,received_device_id,received_msg,timing);
+      v = ParseMsgServer(buffer,received_device_id,received_msg,timing);
       break;
     }
     end_time = micros();
   }
-  ServerAction(received_msg, msg, received_device_id,Device,timing);
+  if(v){
+    ServerAction(received_msg, msg, received_device_id,Device,timing);
+  }
 }
 
 void ScanForDevices(uint64_t WaitTime, MessageType msg){
   for(int Device=1; Device<=MAX_DEVICES; Device++){
-    SendMessage(Device,WaitTime,msg);
+    if(msg==ALIVE){
+      SendMessage(Device,WaitTime,msg);
+    }
+    else{
+      if(DevicesAlive[Device]){
+       SendMessage(Device,WaitTime,msg);
+      } 
+    }
   }
 }
 
@@ -246,11 +254,14 @@ void UpdateServerDisplayDebug(){
   display.printf("\n");
 // Print 
   display.printf("\nOffset: %llu",synchronized_start_time);
-  display.printf("\nLocked: %d",locked_in_device);
+  display.printf("\nLocked: %d",Rankings[0]);
   display.display();
 }
 
 void setup() {
+  if(debug){
+    Serial.printf("\n\n\n\n");
+  }
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.setTextSize(1);
   display.setTextColor(WHITE);
@@ -275,10 +286,12 @@ void setup() {
 }
 
 void loop() {
-//  ScanForDevices(WAIT_TIME,TIMING);
-//  ServerPostPollingActions(TIMING);
+//  ScanForDevices(WAIT_TIME,ALIVE);
+//  ServerPostPollingActions(ALIVE);
+  ScanForDevices(WAIT_TIME,TIMING);
+  ServerPostPollingActions(TIMING);
 // Send Message to Top Ranker
-//  SendMessage(Rankings[0],WAIT_TIME,LOCK_IN);
+  SendMessage(Rankings[0],WAIT_TIME,LOCK_IN);
   if(reset_flag){
 // Check if any new connections joined. Also to update synchronization time
 // Need to remove ALIVE messages in final version. You will be able to RESCAN via the web app
@@ -287,6 +300,7 @@ void loop() {
 // Reset buzzIn on all devices
     ScanForDevices(WAIT_TIME,RESET);
     ServerPostPollingActions(RESET);
+    reset_flag = false;
   }
   UpdateServerDisplayDebug();
 }

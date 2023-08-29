@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+const bool debug = false;
+const bool v_debug = false;
+
 const int SCREEN_WIDTH  = 128; // OLED display width, in pixels
 const int SCREEN_HEIGHT =  64; // OLED display height, in pixels
 
@@ -28,7 +31,7 @@ const int TRIGGER_PIN = 14;
 const int MAX_DEVICES = 5;
 
 // Testing response wait time in microseconds.
-const uint64_t WAIT_TIME = 1000000;
+const uint64_t WAIT_TIME = 100000;
 // Actual response time. Seems to work out...
 //const uint64_t WAIT_TIME = 50000;
 

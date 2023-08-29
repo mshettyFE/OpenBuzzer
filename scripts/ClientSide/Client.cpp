@@ -6,7 +6,7 @@
 #include "Constants.h"
 #include "SerialParsing.h"
 
-const int DEVICE_ID  = 2;
+const int DEVICE_ID  = 3;
 
 bool Pressed = false;
 
@@ -26,6 +26,7 @@ char buffer[bufferSize];
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 void UpdateClientDisplayDebug(){
+  display.setTextSize(1);
   display.clearDisplay();
   display.setCursor(0,0);
   display.printf("Device ID:%d\n",DEVICE_ID);
@@ -35,43 +36,52 @@ void UpdateClientDisplayDebug(){
   display.display();
 }
 
+void UpdateClientDisplay(){
+  display.setTextSize(8);
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.printf("%d\n",DEVICE_ID);
+  if(this_buzzer_locked_in){
+    display.invertDisplay(1);
+    display.display();
+  }
+  else{
+    display.invertDisplay(0);
+    display.display();
+  }
+}
+
+
+
 bool ClientAction(MessageType rec_msg, int rec_device_id){
+  if(debug){
+    Serial.printf("Action:%d,%d\n",rec_msg,rec_device_id);
+  }
+
   if( rec_device_id!= DEVICE_ID){
     return false;
   }
   switch(rec_msg){
     case ALIVE:
-    {
       SendMsgClient(DEVICE_ID,ALIVE,micros());
       break;
-    }
     case RESET:
-    {
       buzz_in_time = 0;
       Pressed = false;
       this_buzzer_locked_in = false;
       SendMsgClient(DEVICE_ID,RESET,0);
       break;
-    }
     case TIMING:
-    {
       SendMsgClient(DEVICE_ID,TIMING,buzz_in_time);
       break;
-    }
     case LOCK_IN:
-    {
       SendMsgClient(DEVICE_ID,LOCK_IN,0);
       this_buzzer_locked_in = true;
-      Serial.printf("\n\nLockedIn\n\n");
-      delay(1000);
       break;
-    }
     case INVALID:
     default:
-    {
       SendMsgClient(DEVICE_ID,INVALID,0);
       break;
-    }
   }
   return true;
 }
@@ -88,7 +98,12 @@ void IRAM_ATTR TooglePressed(){
 void ScanForCommands(){
   bool valid = false;
   while(1){
-    UpdateClientDisplayDebug();
+    if(debug || v_debug){
+      UpdateClientDisplayDebug();
+    }
+    else{
+      UpdateClientDisplay();
+    }
     ReceiveChar(buffer,buffer_index,msg_start,msg_end);
     if(msg_end && msg_start){
       valid = ParseMsgClient(buffer,received_device_id,received_msg);
@@ -97,9 +112,6 @@ void ScanForCommands(){
         ClientAction(received_msg,received_device_id);
       }
 // We got an invalid message. send an INVALID response
-      else{
-        ClientAction(INVALID,DEVICE_ID);
-      }
       received_msg = INVALID;
       received_device_id = INVALID_DEVICE;
       msg_start = false;
