@@ -20,6 +20,7 @@ enum MessageType {INVALID=0,ALIVE=1,TIMING=2,LOCK_IN=3, RESET=4};
 enum SenderType {SERVER=1, CLIENT=2};
 
 const int8_t INVALID_DEVICE = 0;
+const int8_t ALL_DEVICES = -1;
 
 // ENABLE_PIN to toggle between transmit and receive
 const uint8_t ENABLE_PIN = 2;
@@ -37,6 +38,8 @@ const uint8_t MAX_DEVICES = 5;
 
 // Testing response wait time in microseconds.
 const uint64_t WAIT_TIME = 100000;
+// SendAll wait time in microseconds
+const uint64_t SEND_ALL_WAIT_TIME = 500000;
 // Actual response time. Seems to work out...
 //const uint64_t WAIT_TIME = 50000;
 

@@ -163,7 +163,9 @@ void ServerPostPollingActions(MessageType msg){
       reset_flag  = false;
 // Clear Priority queue
       BuzzInTimes.Clear();
-      Serial.printf("\n\n\n%d\n\n\n",BuzzInTimes.GetLength());
+      if(debug){
+        Serial.printf("\n\n\n%d\n\n\n",BuzzInTimes.GetLength());
+      }
 // Set last slot of BuzzedIn to false
       BuzzedIn[MAX_DEVICES] = false;
 // Set RankingIndex to first item
@@ -229,6 +231,19 @@ void ScanForDevices(uint64_t WaitTime, MessageType msg){
        SendMessage(Device,WaitTime,msg);
       } 
     }
+  }
+}
+
+void SendMessageToAll(MessageType msg){
+  uint64_t start_time,end_time;
+// Fire off message for all devices
+  SendMsgServer(ALL_DEVICES,msg);
+// set up local timing variables
+  start_time = micros();
+  end_time = micros();
+// wait for SEND_ALL_WAIT_TIME to give enough time for clients to process request
+  while((end_time-start_time) < SEND_ALL_WAIT_TIME){
+    end_time = micros();
   }
 }
 
@@ -299,7 +314,7 @@ void loop() {
 //    ScanForDevices(WAIT_TIME,ALIVE);
 //    ServerPostPollingActions(ALIVE);
 // Reset buzzIn on all devices
-    ScanForDevices(WAIT_TIME,RESET);
+    SendMessageToAll(RESET);
     ServerPostPollingActions(RESET);
     reset_flag = false;
   }

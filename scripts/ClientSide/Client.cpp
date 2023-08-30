@@ -52,37 +52,57 @@ void UpdateClientDisplay(){
   }
 }
 
-
-
 bool ClientAction(MessageType rec_msg, int8_t rec_device_id){
   if(debug){
     Serial.printf("Action:%d,%d\n",rec_msg,rec_device_id);
   }
-
-  if( rec_device_id!= DEVICE_ID){
-    return false;
+// We respond if the message if for this client
+  if(rec_device_id==DEVICE_ID){
+    switch(rec_msg){
+      case ALIVE:
+        SendMsgClient(DEVICE_ID,ALIVE,micros());
+        break;
+      case RESET:
+        buzz_in_time = 0;
+        Pressed = false;
+        this_buzzer_locked_in = false;
+        SendMsgClient(DEVICE_ID,RESET,0);
+        break;
+      case TIMING:
+        SendMsgClient(DEVICE_ID,TIMING,buzz_in_time);
+        break;
+      case LOCK_IN:
+        SendMsgClient(DEVICE_ID,LOCK_IN,0);
+        this_buzzer_locked_in = true;
+        break;
+      case INVALID:
+      default:
+        SendMsgClient(DEVICE_ID,INVALID,0);
+        break;
+    }
   }
-  switch(rec_msg){
-    case ALIVE:
-      SendMsgClient(DEVICE_ID,ALIVE,micros());
-      break;
-    case RESET:
-      buzz_in_time = 0;
-      Pressed = false;
-      this_buzzer_locked_in = false;
-      SendMsgClient(DEVICE_ID,RESET,0);
-      break;
-    case TIMING:
-      SendMsgClient(DEVICE_ID,TIMING,buzz_in_time);
-      break;
-    case LOCK_IN:
-      SendMsgClient(DEVICE_ID,LOCK_IN,0);
-      this_buzzer_locked_in = true;
-      break;
-    case INVALID:
-    default:
-      SendMsgClient(DEVICE_ID,INVALID,0);
-      break;
+// Otherwise, we don't respond, and only set variables local to client
+  else if(rec_device_id==ALL_DEVICES){
+    switch(rec_msg){
+      case ALIVE:
+        break;
+      case RESET:
+        buzz_in_time = 0;
+        Pressed = false;
+        this_buzzer_locked_in = false;
+        break;
+      case TIMING:
+        break;
+      case LOCK_IN:
+        this_buzzer_locked_in = true;
+        break;
+      case INVALID:
+      default:
+        break;
+    }
+  }
+  else{
+    return false;
   }
   return true;
 }

@@ -84,7 +84,7 @@ bool ParseMsgServer(char* buffer, int8_t& device_id, MessageType& MSGT, uint64_t
     return SetInvalidServer(device_id,MSGT,timing);
   }
   device_id = atoi(endIndex);
-  if(device_id<1 || device_id>MAX_DEVICES){
+  if((device_id<1 || device_id>MAX_DEVICES)){
     return SetInvalidServer(device_id,MSGT,timing);
   }
 // Parse message type. For ALIVE and TIMING, check for additional timing info
@@ -165,7 +165,12 @@ bool ParseMsgClient(char* buffer, int8_t& device_id, MessageType& MSGT){
   }
 // check if device_id is valid
   device_id = atoi(endIndex);
-  if(device_id<1 || device_id > MAX_DEVICES){
+// continue if device_id is all devices
+  if(device_id==ALL_DEVICES){
+    ;
+  }
+// Since the device_id is not all devices, this means that the device id should be inclusively bounded between 1 and MAX_DEVICES
+  else if( device_id<1 || device_id > MAX_DEVICES){
     return SetInvalidClient(device_id,MSGT);
   }
 
@@ -217,6 +222,10 @@ void SendMsgServer(int8_t Device_ID, MessageType msgt){
 }
 
 void SendMsgClient(int8_t Device_ID, MessageType msgt, uint64_t timing){
+// If the Device_ID is below 0 (ie INVALID or a SEND_ALL message), then do nothing
+  if(Device_ID<=0){
+    return;
+  }
 // turn on transmission
   if(debug){
     Serial.printf("Send:%d,%d,%llu\n",Device_ID,msgt,timing);
