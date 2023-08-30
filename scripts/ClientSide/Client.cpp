@@ -6,16 +6,17 @@
 #include "Constants.h"
 #include "SerialParsing.h"
 
-const int DEVICE_ID  = 3;
+const int8_t DEVICE_ID  = 3;
 
 bool Pressed = false;
 
-int count = 0;
+int8_t count = 0;
 
 bool this_buzzer_locked_in = false;
 
 bool msg_start,msg_end;
-uint8_t buffer_index, received_device_id;
+uint8_t buffer_index;
+int8_t received_device_id;
 MessageType received_msg;
 
 uint64_t buzz_in_time;
@@ -53,7 +54,7 @@ void UpdateClientDisplay(){
 
 
 
-bool ClientAction(MessageType rec_msg, int rec_device_id){
+bool ClientAction(MessageType rec_msg, int8_t rec_device_id){
   if(debug){
     Serial.printf("Action:%d,%d\n",rec_msg,rec_device_id);
   }

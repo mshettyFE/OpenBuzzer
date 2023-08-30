@@ -6,8 +6,8 @@
 const bool debug = false;
 const bool v_debug = false;
 
-const int SCREEN_WIDTH  = 128; // OLED display width, in pixels
-const int SCREEN_HEIGHT =  64; // OLED display height, in pixels
+const uint8_t SCREEN_WIDTH  = 128; // OLED display width, in pixels
+const uint8_t SCREEN_HEIGHT =  64; // OLED display height, in pixels
 
 // Possible Messages that can be sent. 
 // ALIVE is used to register a device.
@@ -19,16 +19,21 @@ enum MessageType {INVALID=0,ALIVE=1,TIMING=2,LOCK_IN=3, RESET=4};
 
 enum SenderType {SERVER=1, CLIENT=2};
 
-const int INVALID_DEVICE = 0;
+const int8_t INVALID_DEVICE = 0;
 
 // ENABLE_PIN to toggle between transmit and receive
-const int ENABLE_PIN = 2;
+const uint8_t ENABLE_PIN = 2;
 
 // TRIGGER_PIN to state if button has been pushed
-const int TRIGGER_PIN = 14;
+const uint8_t TRIGGER_PIN = 14;
+
+// I2S DAC pins
+const uint8_t LRCLK_PIN= 12;
+const uint8_t BCLK_PIN= 13;
+const uint8_t DIN_PIN= 0;
 
 // Maximum number of devices that can be connected
-const int MAX_DEVICES = 5;
+const uint8_t MAX_DEVICES = 5;
 
 // Testing response wait time in microseconds.
 const uint64_t WAIT_TIME = 100000;
@@ -45,7 +50,7 @@ const char delimiter[2] = "#";
 const uint8_t bufferSize = 32;
 
 typedef struct Record {
-	uint8_t	device_id;
+	int8_t	device_id;
 	uint64_t	timing;
 } Rec;
 

@@ -19,7 +19,7 @@ uint64_t starting_times[MAX_DEVICES];
 uint64_t synchronized_start_time = 0;
 
 // Rankings of players
-int RankingIndex = 0;
+uint8_t RankingIndex = 0;
 uint8_t Rankings[MAX_DEVICES];
 
 // Priority queue to assign order of buzzing in
@@ -43,7 +43,7 @@ void IRAM_ATTR TogglePressed(){
  reset_flag = true; 
 }
 
-bool ServerAction(MessageType rec_msg, MessageType exp_msg, uint8_t rec_device_id, uint8_t exp_device_id, uint64_t timing){
+bool ServerAction(MessageType rec_msg, MessageType exp_msg, int8_t rec_device_id, int8_t exp_device_id, uint64_t timing){
   if(v_debug){
     Serial.printf("\nAction:%d,%d,%d,%d,%llu\n",rec_msg,exp_msg,rec_device_id,exp_device_id,timing);
   }
@@ -186,7 +186,8 @@ void ServerPostPollingActions(MessageType msg){
 
 void SendMessage(int Device, uint64_t WaitTime, MessageType msg){
   bool msg_start,msg_end;
-  uint8_t buffer_index, received_device_id;
+  uint8_t buffer_index;
+  int8_t received_device_id;
   uint64_t start_time,end_time;
   MessageType received_msg;
 // dont send anything if Device=0

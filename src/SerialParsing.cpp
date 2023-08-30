@@ -5,14 +5,14 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-bool SetInvalidServer(uint8_t device_id, MessageType& msgt,uint64_t& timing){
+bool SetInvalidServer(int8_t device_id, MessageType& msgt,uint64_t& timing){
     msgt = INVALID;
     device_id = 0;
     timing = 0;
     return false;
 }
 
-bool SetInvalidClient(uint8_t device_id, MessageType& msgt){
+bool SetInvalidClient(int8_t device_id, MessageType& msgt){
     msgt = INVALID;
     device_id = 0;
     return false;
@@ -58,7 +58,7 @@ void ReceiveChar(char* buffer, uint8_t& buffer_index, bool& msg_start,bool& msg_
   }
 }
 
-bool ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_t& timing){
+bool ParseMsgServer(char* buffer, int8_t& device_id, MessageType& MSGT, uint64_t& timing){
 // Assumes message has one of two forms:
 // !%d#%d#%d@ where the first %d is sender_id, second %d is device ID and   third %d is the message type 
 // !%d#%d#%d#%llu@ where the first %d is sender_id, second %d is device ID, and  third %d is the message type and %llu is a time
@@ -138,7 +138,7 @@ bool ParseMsgServer(char* buffer, uint8_t& device_id, MessageType& MSGT, uint64_
   return true;
 }
 
-bool ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
+bool ParseMsgClient(char* buffer, int8_t& device_id, MessageType& MSGT){
 // Assumes message has the following form:
 // !%d#%d#%d@ where the first %d is either SERVER or CLIENT, the second %d is the device_id and third %d is message type
   if(debug){
@@ -203,7 +203,7 @@ bool ParseMsgClient(char* buffer, uint8_t& device_id, MessageType& MSGT){
   return true;
 }
 
-void SendMsgServer(uint8_t Device_ID, MessageType msgt){
+void SendMsgServer(int8_t Device_ID, MessageType msgt){
 // turn on transmission
   if(debug){
     Serial.printf("Send:%d,%d\n",Device_ID,msgt);
@@ -216,7 +216,7 @@ void SendMsgServer(uint8_t Device_ID, MessageType msgt){
     digitalWrite(ENABLE_PIN,LOW);
 }
 
-void SendMsgClient(uint8_t Device_ID, MessageType msgt, uint64_t timing){
+void SendMsgClient(int8_t Device_ID, MessageType msgt, uint64_t timing){
 // turn on transmission
   if(debug){
     Serial.printf("Send:%d,%d,%llu\n",Device_ID,msgt,timing);
