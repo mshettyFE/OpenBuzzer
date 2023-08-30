@@ -1,0 +1,39 @@
+<!DOCTYPE HTML><html>
+<head>
+  <title>ESP Web Server</title>
+  <link rel="stylesheet" href="index.css">
+  <script src="Requests.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <h1>OpenBuzzer</h1>
+  <button id="Clear" onclick=SendRequest(2)>Clear!</button>
+  <br>
+  <h1>Winner:</h1>
+  <h3>Rankings</h3>
+  <br>
+  <table>
+    <thead>
+      <tr>
+        <th>Ranking</th>
+        <th>Device</th>
+      </tr>  
+    </thead>
+    <tbody id="Ranking"></tbody>
+  </table>
+  <div>
+    <br>
+  <button id="Rescan" onclick=SendRequest(3)>Rescan</button>
+  <br>
+  <br>
+  <table>
+    <thead>
+      <tr>
+        <th>Device</th> <th>Status</th>
+      </tr>  
+    </thead>
+    <tbody id = "Alive">
+    </tbody>
+  </table>
+</body>
+</html>

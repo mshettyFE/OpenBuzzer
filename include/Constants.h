@@ -3,11 +3,15 @@
 
 #include <stdint.h>
 
-const bool debug = false;
+const bool debug = true;
 const bool v_debug = false;
 
 const uint8_t SCREEN_WIDTH  = 128; // OLED display width, in pixels
 const uint8_t SCREEN_HEIGHT =  64; // OLED display height, in pixels
+
+// Possible actions to update web interface. WEB_UPDATE only send out by server
+// WEB_CLEAR, WEB_RESCAN initiated by client
+enum WebpageMessageTypes {WEB_INVALID,WEB_UPDATE,WEB_CLEAR,WEB_RESCAN,WEB_NOTHING};
 
 // Possible Messages that can be sent. 
 // ALIVE is used to register a device.
@@ -40,8 +44,8 @@ const uint8_t MAX_DEVICES = 5;
 const uint64_t WAIT_TIME = 100000;
 // SendAll wait time in microseconds
 const uint64_t SEND_ALL_WAIT_TIME = 500000;
-// Actual response time. Seems to work out...
-//const uint64_t WAIT_TIME = 50000;
+// Webserver client refresh time
+const uint64_t refresh_client_pool = 1000000;
 
 // Start and end characters for messages
 const char start_marker = '!';
@@ -56,5 +60,7 @@ typedef struct Record {
 	int8_t	device_id;
 	uint64_t	timing;
 } Rec;
+
+extern WebpageMessageTypes current_webpage_update;
 
 #endif

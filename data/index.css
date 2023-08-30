@@ -1,0 +1,13 @@
+html {font-family: Arial; display: inline-block; text-align: center;}
+h2 {color: blue;}
+p {font-size: 3.0rem;}
+body {max-width: 600px; margin:0px auto; padding-bottom: 25px;}
+button {position: relative; display: inline-block; width: 120px; height: 68px; font-size: 30px;} 
+#rescan{color:red;}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+  }
+table {  margin: auto;
+    width: 50%;
+    padding: 10px;}

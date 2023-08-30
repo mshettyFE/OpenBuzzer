@@ -12,7 +12,19 @@
 #include <ESPAsyncWebServer.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <ArduinoJson.h>
 #include "LittleFS.h"
+#include "Constants.h"
+#include "Wifi.h"
+
+// Stand in for actual data
+const int devices = 6;
+uint8_t Rankings[devices] = {3,4,2,0,0,0};
+bool DevicesAlive[devices+1] {0,0,1,1,1,0,0};
+
+// Used to periodically check if we need to refresh client
+uint64_t refresh_client_start = micros();
+uint64_t refresh_client_end = refresh_client_start;
 
 // Replace with your network credentials
 const char* ssid = "test";
@@ -32,13 +44,10 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
-
-void notFound(AsyncWebServerRequest *request)
-{
-  request->send(404, "text/plain", "Not found");
-}
+AsyncWebSocket ws("/ws");
 
 void setup(){
+  Serial.begin(115200);
   LittleFS.begin();
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -56,8 +65,10 @@ void setup(){
   display.println(WiFi.softAPIP());
   display.display();
 
+  initWebSocket(server, ws);
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-            { request->send(LittleFS,"/index.html","text/html");});
+            { request->send(LittleFS,"/game_index.html","text/html");});
   server.on("/index.css", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(LittleFS,"/index.css","text/css");});
   server.on("/Requests.js", HTTP_GET, [](AsyncWebServerRequest *request)
@@ -68,4 +79,16 @@ void setup(){
 }
 
 void loop() {
+  if(refresh_client_end-refresh_client_start < refresh_client_pool){
+    refresh_client_end = micros();
+  }
+  else{
+    ws.cleanupClients();
+    refresh_client_start = micros();
+    refresh_client_end = refresh_client_start;
+  }
+  String response = RespondToWebInterface(Rankings,DevicesAlive,devices,current_webpage_update);
+  if(response!=""){
+    notifyClients(response, ws);
+  }
 }

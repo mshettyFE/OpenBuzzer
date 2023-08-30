@@ -31,7 +31,7 @@ void setup() {
     return;
   }
   
-  File file = LittleFS.open("/test.txt", "r");
+  File file = LittleFS.open("/game_index.html", "r");
   if(!file){
     display.setCursor(0, 0);
     display.println("Failed to open file for reading");

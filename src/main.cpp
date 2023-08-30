@@ -1,171 +1,94 @@
-#include <errno.h>
-#include <Wire.h>
+// Modifed from RandomNerdTutorials.com. See below
+/*********
+  Rui Santos
+  Complete project details at https://RandomNerdTutorials.com/esp32-async-web-server-espasyncwebserver-library/
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+*********/
+
+// Import required libraries
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-
+#include <ArduinoJson.h>
+#include "LittleFS.h"
 #include "Constants.h"
-#include "SerialParsing.h"
+#include "Wifi.h"
 
-const int8_t DEVICE_ID  = 2;
+// Stand in for actual data
+const int devices = 6;
+uint8_t Rankings[devices] = {3,4,2,0,0,0};
+bool DevicesAlive[devices+1] {0,0,1,1,1,0,0};
 
-bool Pressed = false;
+// Used to periodically check if we need to refresh client
+uint64_t refresh_client_start = micros();
+uint64_t refresh_client_end = refresh_client_start;
 
-int8_t count = 0;
+// Replace with your network credentials
+const char* ssid = "test";
+const char* password = "";
 
-bool this_buzzer_locked_in = false;
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
-bool msg_start,msg_end;
-uint8_t buffer_index;
-int8_t received_device_id;
-MessageType received_msg;
+IPAddress local_IP(192,168,4,22);
+IPAddress gateway(192,168,4,9);
+IPAddress subnet(255,255,255,0);
 
-uint64_t buzz_in_time;
-// Buffer for incoming message;
-char buffer[bufferSize];
+String html;
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-void UpdateClientDisplayDebug(){
-  display.setTextSize(1);
-  display.clearDisplay();
-  display.setCursor(0,0);
-  display.printf("Device ID:%d\n",DEVICE_ID);
-  display.printf("Pressed:%llu\n",buzz_in_time);
-  display.printf("Locked In:%d\n",this_buzzer_locked_in);
-  display.printf("%d\n",count++);
-  display.display();
-}
+// Create AsyncWebServer object on port 80
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
 
-void UpdateClientDisplay(){
-  display.setTextSize(8);
-  display.clearDisplay();
-  display.setCursor(0,0);
-  display.printf("%d\n",DEVICE_ID);
-  if(this_buzzer_locked_in){
-    display.invertDisplay(1);
-    display.display();
-  }
-  else{
-    display.invertDisplay(0);
-    display.display();
-  }
-}
+void setup(){
+  Serial.begin(115200);
+  LittleFS.begin();
 
-bool ClientAction(MessageType rec_msg, int8_t rec_device_id){
-  if(debug){
-    Serial.printf("Action:%d,%d\n",rec_msg,rec_device_id);
-  }
-// We respond if the message if for this client
-  if(rec_device_id==DEVICE_ID){
-    switch(rec_msg){
-      case ALIVE:
-        SendMsgClient(DEVICE_ID,ALIVE,micros());
-        break;
-      case RESET:
-        buzz_in_time = 0;
-        Pressed = false;
-        this_buzzer_locked_in = false;
-        SendMsgClient(DEVICE_ID,RESET,0);
-        break;
-      case TIMING:
-        SendMsgClient(DEVICE_ID,TIMING,buzz_in_time);
-        break;
-      case LOCK_IN:
-        SendMsgClient(DEVICE_ID,LOCK_IN,0);
-        this_buzzer_locked_in = true;
-        break;
-      case INVALID:
-      default:
-        SendMsgClient(DEVICE_ID,INVALID,0);
-        break;
-    }
-  }
-// Otherwise, we don't respond, and only set variables local to client
-  else if(rec_device_id==ALL_DEVICES){
-    switch(rec_msg){
-      case ALIVE:
-        break;
-      case RESET:
-        buzz_in_time = 0;
-        Pressed = false;
-        this_buzzer_locked_in = false;
-        break;
-      case TIMING:
-        break;
-      case LOCK_IN:
-        this_buzzer_locked_in = true;
-        break;
-      case INVALID:
-      default:
-        break;
-    }
-  }
-  else{
-    return false;
-  }
-  return true;
-}
-
-void IRAM_ATTR TooglePressed(){
-  if(!Pressed){
-    Pressed = true;
-    buzz_in_time = micros();
-//    Serial.printf("%dn",Pressed);
-//    Serial.printf("%llu\n",buzz_in_time);
-  }
-}
-
-void ScanForCommands(){
-  bool valid = false;
-  while(1){
-    if(debug || v_debug){
-      UpdateClientDisplayDebug();
-    }
-    else{
-      UpdateClientDisplay();
-    }
-    ReceiveChar(buffer,buffer_index,msg_start,msg_end);
-    if(msg_end && msg_start){
-      valid = ParseMsgClient(buffer,received_device_id,received_msg);
-// WE got a valid message from the server. Perform an action
-      if(valid){
-        ClientAction(received_msg,received_device_id);
-      }
-// We got an invalid message. send an INVALID response
-      received_msg = INVALID;
-      received_device_id = INVALID_DEVICE;
-      msg_start = false;
-      msg_end = false;
-      buffer_index = 0;
-      valid = true;
-      break;
-    }
-  }
-}
-
-void setup() {
-  buzz_in_time = 0;
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
+  
+  // Connect to Wi-Fi
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+  WiFi.softAP(ssid, NULL,1,0,1);
+
+  // Print ESP Local IP Address
   display.clearDisplay();
   display.setCursor(0,0);
-  display.printf("Device ID:%d\n",DEVICE_ID);
-  display.printf("Pressed:%llu\n",buzz_in_time);
+  display.println(WiFi.softAPIP());
   display.display();
-  Serial.begin(115200);
-  pinMode(ENABLE_PIN,OUTPUT);
-  pinMode(TRIGGER_PIN,INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(TRIGGER_PIN), TooglePressed, FALLING);
-  digitalWrite(ENABLE_PIN,LOW);
-  received_msg = INVALID;
-  received_device_id = INVALID_DEVICE;
-  msg_start = false;
-  msg_end = false;
-  buffer_index = 0;
+
+  initWebSocket(server, ws);
+
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(LittleFS,"/game_index.html","text/html");});
+  server.on("/index.css", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(LittleFS,"/index.css","text/css");});
+  server.on("/Requests.js", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(LittleFS,"/Requests.js","text/javascript");});
+  // Start server
+  server.onNotFound(notFound);
+  server.begin();
 }
 
 void loop() {
-  ScanForCommands();
+  if(refresh_client_end-refresh_client_start < refresh_client_pool){
+    refresh_client_end = micros();
+  }
+  else{
+    ws.cleanupClients();
+    refresh_client_start = micros();
+    refresh_client_end = refresh_client_start;
+  }
+  String response = RespondToWebInterface(Rankings,DevicesAlive,devices,current_webpage_update);
+  if(response!=""){
+    notifyClients(response, ws);
+  }
 }
