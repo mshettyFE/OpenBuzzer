@@ -15,6 +15,8 @@ var websocket;
 
 initWebSocket();
 
+// Make Get request to save .mp3 locally
+
 function initWebSocket() {
    if(debug){
       console.log('Trying to open a WebSocket connection...');

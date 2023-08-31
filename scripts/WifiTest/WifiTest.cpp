@@ -73,7 +73,8 @@ void setup(){
             { request->send(LittleFS,"/index.css","text/css");});
   server.on("/Requests.js", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(LittleFS,"/Requests.js","text/javascript");});
-  // Start server
+//server.serveStatic("/A41Sec.mp3", SPIFFS, "/A41Sec.mp3");
+// Start server
   server.onNotFound(notFound);
   server.begin();
 }

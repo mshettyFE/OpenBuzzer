@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-const bool debug = true;
+const bool debug = false;
 const bool v_debug = false;
 
 const uint8_t SCREEN_WIDTH  = 128; // OLED display width, in pixels
