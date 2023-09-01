@@ -13,10 +13,10 @@
 #include "Wifi.h"
 
 // Network credentials
-const char* ssid = "test";
+const char* ssid = "OpenBuzzer";
 const char* password = "";
 
-// using 1 based indexing, since atoi returns 0 for no conversion. Want to avoid this ambiguity.
+// First device is 1, since atoi returns 0 for no conversion. Want to avoid this ambiguity.
 bool DevicesAlive[MAX_DEVICES+1];
 
 // place to store timing data from ALIVE messages
@@ -297,23 +297,29 @@ void UpdateServerDisplayDebug(){
   display.display();
 }
 
+void UpdateServerDisplay(){
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.printf("SSID: %s\n",ssid);
+  display.printf("IP: ");
+  display.println(WiFi.softAPIP());
+  display.printf("\n\n");
+  display.println("Connect to wifi SSID. Type in IP address in browser.");
+  display.display();
+}
+
 void setup() {
   if(debug){
     Serial.printf("\n\n\n\n");
   }
   LittleFS.begin();
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
     // Connect to Wi-Fi
   WiFi.softAPConfig(local_IP, gateway, subnet);
   WiFi.softAP(ssid, NULL,1,0,1);
   initWebSocket(server, ws);
-  display.clearDisplay();
-  display.printf("SSID: %s\n",ssid);
-  display.println(WiFi.softAPIP());
-  display.println("Connect to SSID. Type in IP in browser.");
-  display.display();
+  UpdateServerDisplay();
   Serial.begin(115200);
   pinMode(ENABLE_PIN,OUTPUT);
   digitalWrite(ENABLE_PIN,HIGH);
@@ -373,6 +379,9 @@ void loop() {
         response = RespondToWebInterface(Rankings,DevicesAlive,MAX_DEVICES,current_webpage_update);
         break;
       case WEB_RESCAN:
+        for(int i=1; i< MAX_DEVICES+1; ++i){
+          DevicesAlive[i] = 0;
+        }
         ScanForDevices(WAIT_TIME,ALIVE);
         ServerPostPollingActions(ALIVE);
         response = RespondToWebInterface(Rankings,DevicesAlive,MAX_DEVICES,current_webpage_update);
@@ -392,5 +401,5 @@ void loop() {
       notifyClients(response, ws);
     }
   }
-  UpdateServerDisplayDebug();
+//  UpdateServerDisplayDebug();
 }
