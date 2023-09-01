@@ -2,10 +2,19 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
 
 #include "Constants.h"
 #include "SerialParsing.h"
 #include "PriorityQueue.h"
+#include "Wifi.h"
+
+// Network credentials
+const char* ssid = "test";
+const char* password = "";
 
 // using 1 based indexing, since atoi returns 0 for no conversion. Want to avoid this ambiguity.
 bool DevicesAlive[MAX_DEVICES+1];
@@ -21,6 +30,8 @@ uint64_t synchronized_start_time = 0;
 // Rankings of players
 uint8_t RankingIndex = 0;
 uint8_t Rankings[MAX_DEVICES];
+// Index to keep track of if Rankings has been updated
+uint8_t RankingIndexPrevious = 0;
 
 // Priority queue to assign order of buzzing in
 PriorityQueue BuzzInTimes(0);
@@ -38,6 +49,14 @@ bool reset_flag  = false;
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// Create AsyncWebServer object on port 80
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
+
+// Used to refresh clients that disconnect
+uint64_t refresh_client_start = micros();
+uint64_t refresh_client_end = refresh_client_start;
 
 void IRAM_ATTR TogglePressed(){
  reset_flag = true; 
@@ -184,6 +203,10 @@ void ServerPostPollingActions(MessageType msg){
     default:
       break;
   }
+  if(RankingIndex!=RankingIndexPrevious){
+    RankingIndexPrevious = RankingIndex;
+    current_webpage_update = WEB_UPDATE;
+  }
 }
 
 void SendMessage(int Device, uint64_t WaitTime, MessageType msg){
@@ -278,10 +301,18 @@ void setup() {
   if(debug){
     Serial.printf("\n\n\n\n");
   }
+  LittleFS.begin();
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.setTextSize(1);
   display.setTextColor(WHITE);
+    // Connect to Wi-Fi
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+  WiFi.softAP(ssid, NULL,1,0,1);
+  initWebSocket(server, ws);
   display.clearDisplay();
+  display.printf("SSID: %s\n",ssid);
+  display.println(WiFi.softAPIP());
+  display.println("Connect to SSID. Type in IP in browser.");
   display.display();
   Serial.begin(115200);
   pinMode(ENABLE_PIN,OUTPUT);
@@ -296,14 +327,24 @@ void setup() {
   for(int Device=0; Device<MAX_DEVICES; Device++){
     Rankings[Device] = 0;
   }
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+            {
+              request->send(LittleFS,"/game_index.html","text/html");
+              current_webpage_update = WEB_UPDATE;
+              });
+  server.on("/index.css", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(LittleFS,"/index.css","text/css");});
+  server.on("/Requests.js", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(LittleFS,"/Requests.js","text/javascript");});
 // Scan all devices to check ALIVE connections and get global offset time
+// Start server
+  server.onNotFound(notFound);
+  server.begin();
   ScanForDevices(WAIT_TIME,ALIVE);
   ServerPostPollingActions(ALIVE);
 }
 
 void loop() {
-//  ScanForDevices(WAIT_TIME,ALIVE);
-//  ServerPostPollingActions(ALIVE);
   ScanForDevices(WAIT_TIME,TIMING);
   ServerPostPollingActions(TIMING);
 // Send Message to Top Ranker
@@ -311,12 +352,45 @@ void loop() {
   if(reset_flag){
 // Check if any new connections joined. Also to update synchronization time
 // Need to remove ALIVE messages in final version. You will be able to RESCAN via the web app
-//    ScanForDevices(WAIT_TIME,ALIVE);
-//    ServerPostPollingActions(ALIVE);
 // Reset buzzIn on all devices
     SendMessageToAll(RESET);
     ServerPostPollingActions(RESET);
     reset_flag = false;
+  }
+  if(refresh_client_end-refresh_client_start < refresh_client_pool){
+    refresh_client_end = micros();
+  }
+  else{
+    ws.cleanupClients();
+    refresh_client_start = micros();
+    refresh_client_end = refresh_client_start;
+  }
+
+  if(current_webpage_update!=WEB_NOTHING){
+    String response;
+    switch(current_webpage_update){
+      case WEB_UPDATE:
+        response = RespondToWebInterface(Rankings,DevicesAlive,MAX_DEVICES,current_webpage_update);
+        break;
+      case WEB_RESCAN:
+        ScanForDevices(WAIT_TIME,ALIVE);
+        ServerPostPollingActions(ALIVE);
+        response = RespondToWebInterface(Rankings,DevicesAlive,MAX_DEVICES,current_webpage_update);
+        break;
+      case WEB_CLEAR:
+        SendMessageToAll(RESET);
+        ServerPostPollingActions(RESET);
+        reset_flag = false;
+        response = RespondToWebInterface(Rankings,DevicesAlive,MAX_DEVICES,current_webpage_update);
+        break;
+      case WEB_NOTHING:
+      default:
+        response = RespondToWebInterface(Rankings,DevicesAlive,MAX_DEVICES,current_webpage_update);
+        break;
+    }
+    if(response!=""){
+      notifyClients(response, ws);
+    }
   }
   UpdateServerDisplayDebug();
 }

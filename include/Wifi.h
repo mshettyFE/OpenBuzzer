@@ -7,6 +7,8 @@
 
 // We default to updating Website
 
+String RespondToWebInterfaceTest(uint8_t* Rankings, bool* DevAlive, uint8_t MAX_DEVICES, WebpageMessageTypes& msg);
+
 String RespondToWebInterface(uint8_t* Rankings, bool* DevAlive, uint8_t MAX_DEVICES, WebpageMessageTypes& msg);
 
 void initWebSocket(AsyncWebServer& server, AsyncWebSocket& ws);

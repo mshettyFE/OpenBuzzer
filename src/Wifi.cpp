@@ -4,6 +4,45 @@
 
 WebpageMessageTypes current_webpage_update = WEB_NOTHING;
 
+String RespondToWebInterfaceTest(uint8_t* Rankings, bool* DevAlive, uint8_t max_devices, WebpageMessageTypes& msg){
+// Allocate enough space to serialize everything, plus some extra just in case
+    uint64_t size = 48+32*(max_devices+1)+512;
+    DynamicJsonDocument  doc(size);
+// cases here
+    switch(msg){
+      case WEB_CLEAR:
+        doc["MSG"] = msg;
+// clear out Rankings
+        doc["Rank"][0] = 0;
+        break;
+      case WEB_RESCAN:
+        doc["MSG"] = msg;
+// Add DevicesAlive to serialization
+        for(int i=0; i< max_devices; ++i){
+          doc["Alive"][i] = DevAlive[i];
+        }
+        doc["Alive"][max_devices] = DevAlive[max_devices];
+      case WEB_UPDATE:
+        doc["MSG"] = msg;
+// Assign message type and add Rankings to serialization
+        for(int i=0; i< max_devices; ++i){
+          doc["Rank"][i] = Rankings[i];
+        }
+        break;
+      case WEB_NOTHING:
+      case WEB_INVALID:
+      default:
+// Return Empty and reset to default
+        msg = WEB_NOTHING;
+        return "";
+        break;
+    }
+    String output = "";
+    serializeJson(doc,output);
+    msg = WEB_NOTHING;
+    return output;
+}
+
 String RespondToWebInterface(uint8_t* Rankings, bool* DevAlive, uint8_t max_devices, WebpageMessageTypes& msg){
 // Allocate enough space to serialize everything, plus some extra just in case
     uint64_t size = 48+32*(max_devices+1)+512;

@@ -1,6 +1,9 @@
 #ifndef CONSTANTS
 #define CONSTANTS
 
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include <stdint.h>
 
 const bool debug = false;
@@ -11,7 +14,12 @@ const uint8_t SCREEN_HEIGHT =  64; // OLED display height, in pixels
 
 // Possible actions to update web interface. WEB_UPDATE only send out by server
 // WEB_CLEAR, WEB_RESCAN initiated by client
+
 enum WebpageMessageTypes {WEB_INVALID,WEB_UPDATE,WEB_CLEAR,WEB_RESCAN,WEB_NOTHING};
+
+const IPAddress local_IP(192,168,4,22);
+const IPAddress gateway(192,168,4,9);
+const IPAddress subnet(255,255,255,0);
 
 // Possible Messages that can be sent. 
 // ALIVE is used to register a device.

@@ -56,7 +56,7 @@ function onClose(event) {
             var oldAlive = document.getElementById("Alive");
             var newAlive = document.createElement('tbody');
             newAlive.setAttribute("id", "Alive");
-            for(let i = 0; i < data.Alive.length; ++i){
+            for(let i = 1; i < data.Alive.length; ++i){
                var cur_player = data.Alive[i];
                if(cur_player==0){
                   add_row(newAlive,i,"Not Connected");
@@ -76,7 +76,7 @@ function onClose(event) {
          for(let i = 0; i < data.Rank.length; ++i){
             var cur_player = data.Rank[i];
             if(cur_player!=0){
-               add_row(newRanking,cur_player,"Connected");
+               add_row(newRanking,i+1,cur_player);
             }
          }
          oldRanking.parentNode.replaceChild(newRanking, oldRanking);
