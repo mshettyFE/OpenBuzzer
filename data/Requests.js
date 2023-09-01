@@ -8,7 +8,9 @@ const Update = 1;
 const Clear = 2;
 const Rescan = 3;
 
-const debug = true;
+const debug = false;
+
+var should_play = true;
 
 var gateway = `ws://${window.location.hostname}/ws`;
 var websocket;
@@ -80,6 +82,14 @@ function onClose(event) {
             }
          }
          oldRanking.parentNode.replaceChild(newRanking, oldRanking);
+         if(debug){
+            console.log("ShouldPlayUpdate: ")
+            console.log(should_play);
+         }
+         if(data.Rank[0]!= 0 && should_play){
+            should_play = false;
+            play();
+         }
       }
       break;
       case Clear:
@@ -88,6 +98,12 @@ function onClose(event) {
          newRanking.setAttribute("id", "Ranking");
          newRanking.innerHTML = "";
          oldRanking.parentNode.replaceChild(newRanking, oldRanking);
+         currentWinner = 0;
+         should_play = true;
+         if(debug){
+            console.log("ShouldPlayClear: ")
+            console.log(should_play);
+         }
       }
    document.getElementById("Rescan").disabled = false;
 }
@@ -113,4 +129,9 @@ function SendRequest(MessageType){
 function add_row(body_tag, left, right){
    body_tag.insertRow().innerHTML += "<th>"+left+" <th>"+right+"\n";
 //   body_tag.insertRow().innerHTML += "<th>"+left+"<\\th>"+" <th>"+right+"<\\th>\n";
+}
+
+function play(){
+   var sound = new Audio('A41Sec.mp3');
+   sound.play();
 }

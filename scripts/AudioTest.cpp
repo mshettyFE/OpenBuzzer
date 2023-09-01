@@ -1,6 +1,8 @@
 // Testing code taken directly from ESP9266Audio library example "PlayWAVFromFunction.ino" with some mods
 // Original source code here: https://github.com/earlephilhower/ESP8266Audio/blob/master/examples/PlayWAVFromFunction/PlayWAVFromFunction.ino
 
+// Currently unused
+
 #include <Arduino.h>
 #include "AudioFileSourceFunction.h"
 #include "AudioGeneratorWAV.h"

@@ -305,7 +305,7 @@ void UpdateServerDisplay(){
   display.printf("IP: ");
   display.println(WiFi.softAPIP());
   display.printf("\n\n");
-  display.println("Connect to wifi SSID. Type in IP address in browser.");
+  display.println("Connect to wifi SSID. Type in IP address in browser. Turn up volume.");
   display.display();
 }
 
@@ -342,6 +342,9 @@ void setup() {
             { request->send(LittleFS,"/index.css","text/css");});
   server.on("/Requests.js", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(LittleFS,"/Requests.js","text/javascript");});
+  server.serveStatic("/", LittleFS, "/");
+//  server.serveStatic("/A41Sec.mp3", SPIFFS, "/A41Sec.mp3");
+
 // Scan all devices to check ALIVE connections and get global offset time
 // Start server
   server.onNotFound(notFound);
@@ -390,6 +393,7 @@ void loop() {
         SendMessageToAll(RESET);
         ServerPostPollingActions(RESET);
         reset_flag = false;
+        current_webpage_update = WEB_CLEAR;
         response = RespondToWebInterface(Rankings,DevicesAlive,MAX_DEVICES,current_webpage_update);
         break;
       case WEB_NOTHING:

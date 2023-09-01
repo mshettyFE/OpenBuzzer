@@ -17,6 +17,10 @@
 #include "Constants.h"
 #include "Wifi.h"
 
+// Network credentials
+const char* ssid = "OpenBuzzer";
+const char* password = "";
+
 // Stand in for actual data
 const int devices = 6;
 uint8_t Rankings[devices] = {3,4,2,0,0,0};
@@ -63,7 +67,9 @@ void setup(){
             { request->send(LittleFS,"/index.css","text/css");});
   server.on("/Requests.js", HTTP_GET, [](AsyncWebServerRequest *request)
             { request->send(LittleFS,"/Requests.js","text/javascript");});
-//server.serveStatic("/A41Sec.mp3", SPIFFS, "/A41Sec.mp3");
+  server.on("/Requests.js", HTTP_GET, [](AsyncWebServerRequest *request)
+            { request->send(LittleFS,"/Requests.js","text/javascript");});
+//  server.serveStatic("/A41Sec.mp3", SPIFFS, "/A41Sec.mp3");
 // Start server
   server.onNotFound(notFound);
   server.begin();
