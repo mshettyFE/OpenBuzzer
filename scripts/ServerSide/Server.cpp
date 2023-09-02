@@ -354,6 +354,7 @@ void setup() {
 }
 
 void loop() {
+//  UpdateServerDisplay();
   ScanForDevices(WAIT_TIME,TIMING);
   ServerPostPollingActions(TIMING);
 // Send Message to Top Ranker

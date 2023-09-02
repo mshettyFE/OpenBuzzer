@@ -46,7 +46,7 @@ const uint8_t BCLK_PIN= 13;
 const uint8_t DIN_PIN= 0;
 
 // Maximum number of devices that can be connected
-const uint8_t MAX_DEVICES = 5;
+const uint8_t MAX_DEVICES = 10;
 
 // Testing response wait time in microseconds.
 const uint64_t WAIT_TIME = 100000;
