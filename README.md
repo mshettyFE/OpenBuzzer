@@ -20,7 +20,7 @@ NOTE: for Windows with WSL, you need to open up a WSL terminal instead of a typi
 
 cd into downloaded repository, then fire up VSCode with ```code .``` and click on the PlatformIO icon on the left hand taskbar. Choose the "Pick a Folder" option and select the root folder of the git repo you just downloaded. Wait for all the configurations to get setup.
 
-# Uploading Code (Client)
+# Uploading Code to Units
 
 In general, you need to do the following steps:
 
@@ -39,6 +39,18 @@ Once that is done, you can copy over [Server.cpp](/scripts/ServerSide/Server.cpp
 
 # Ordering PCBs
 
-The gerber files need to create the PCBs are located at [here](/design/PCBs/Gerber). These specific design files work for [JLCPCB](https://jlcpcb.com/). Just drag and drop the zip files and order however many you want (Suggested is 5 Server boards and 15 client boards).
+The gerber files needed to create the PCBs are located at [here](/design/PCBs/Gerber). These specific design files work for [JLCPCB](https://jlcpcb.com/). Just drag and drop the zip files and order however many you want (Suggested is 5 Server boards and 15 client boards).
 
-If you are ordering from a different manufacturer, or some of your component footprints are egregiously misaligned with the board (the NODEMCU form factor is not particularly well standardized), you can directly modify the design files located [here](/design/PCBs/KiCad/).
+If you are ordering from a different manufacturer, or some of your component footprints are egregiously misaligned with the board (the NODEMCU form factor and RJ45 PCB mounts are not particularly well standardized), you can directly modify the design files located [here](/design/PCBs/KiCad/). 
+
+A suggestion to see if the current design works for you PRIOR to ordering from a fabricating service: print out the PCB layout on printer paper and see if your components roughly line up. It's OK if the pins don't line up exactly, since they can be slightly bent with pliers to correctly mate with the drill holes.
+
+# Assembly Tips
+
+* Keep the soldering iron as low as feasible (Try not to go above 350 F). Lower heat means you are less likely to damage components and your tip
+* Remember to properly clean the iron before and after use, and re-tin whenever you aren't using the iron
+* Be careful not to smear solder onto the PCB traces while soldering. Pain to clean up
+* The top left corner of the PCB (ie corner near OLED display) should align with the little divet on the bottom part of the enclosure
+* OLED contacts go into indentation in OLED holder
+* You can get away with 3 screws to secure the OLED, the PCB, and the cover 
+* Make sure that there are no shorts between wires prior to hot gluing them in place (pain to remove)
